@@ -12,16 +12,22 @@ import {
   Keyboard,
   StatusBar,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import { IndianCitiesData, IndianCity } from './IndianCity';
+import { supabase } from '../../../lib/supabase';
 
 const { height } = Dimensions.get('window');
 
-const CITY_COLLEGES: Record<string, string[]> = {
-  Chennai: ['SRM University'],
-};
+interface College {
+  id: number;
+  name: string;
+  location: string;
+}
 
 export default function SearchingCommunitiesScreen({ navigation }: any) {
   const colors = useColors();
@@ -30,22 +36,39 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
   const [showCityModal, setShowCityModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<IndianCity | null>(null);
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [loadingColleges, setLoadingColleges] = useState(false);
 
   const filteredCities = IndianCitiesData.filter((city) =>
     city.name.toLowerCase().startsWith(searchQuery.toLowerCase())
   );
-
-  const colleges = selectedCity ? CITY_COLLEGES[selectedCity.name] || [] : [];
 
   const handleSearch = () => {
     setShowAlert(false);
     setShowSearch(true);
   };
 
-  const handleSelectCity = (city: IndianCity) => {
+  const handleSelectCity = async (city: IndianCity) => {
     setSelectedCity(city);
     setShowSearch(false);
     setShowCityModal(true);
+    setLoadingColleges(true);
+
+    try {
+      // Query colleges whose location contains the selected city name
+      const { data, error } = await supabase
+        .from('colleges')
+        .select('id, name, location')
+        .ilike('location', `%${city.name}%`);
+
+      if (error) throw error;
+      setColleges(data ?? []);
+    } catch (err) {
+      console.error('Failed to fetch colleges:', err);
+      setColleges([]);
+    } finally {
+      setLoadingColleges(false);
+    }
   };
 
   const styles = StyleSheet.create({
@@ -202,6 +225,8 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
       fontSize: FontSize.md,
       fontFamily: FontFamily.medium,
       color: colors.textPrimary,
+      flex: 1,
+      marginRight: 12,
     },
     joinButton: {
       height: 36,
@@ -261,41 +286,48 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
       >
         <TouchableWithoutFeedback onPress={() => setShowSearch(false)}>
           <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <View style={styles.modalContainer}>
-                <View style={styles.modalHandle} />
-                <View style={styles.searchBar}>
-                  <Text style={styles.searchIcon}>🔍</Text>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search city..."
-                    placeholderTextColor={colors.textTertiary}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    autoFocus
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ width: '100%' }}
+            >
+              <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <View style={styles.modalContainer}>
+                  <View style={styles.modalHandle} />
+
+                  <View style={styles.searchBar}>
+                    <Text style={styles.searchIcon}>🔍</Text>
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="Search city..."
+                      placeholderTextColor={colors.textTertiary}
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      autoFocus
+                    />
+                    {searchQuery.length > 0 && (
+                      <TouchableOpacity onPress={() => setSearchQuery('')}>
+                        <Text style={styles.clearButton}>✕</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  <FlatList
+                    data={filteredCities}
+                    keyExtractor={(item) => `${item.name}-${item.state}`}
+                    keyboardShouldPersistTaps="handled"
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.cityItem}
+                        onPress={() => handleSelectCity(item)}
+                      >
+                        <Text style={styles.cityName}>{item.name}</Text>
+                        <Text style={styles.cityState}>{item.state}</Text>
+                      </TouchableOpacity>
+                    )}
                   />
-                  {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')}>
-                      <Text style={styles.clearButton}>✕</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
-                <FlatList
-                  data={filteredCities}
-                  keyExtractor={(item) => `${item.name}-${item.state}`}
-                  keyboardShouldPersistTaps="handled"
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={styles.cityItem}
-                      onPress={() => handleSelectCity(item)}
-                    >
-                      <Text style={styles.cityName}>{item.name}</Text>
-                      <Text style={styles.cityState}>{item.state}</Text>
-                    </TouchableOpacity>
-                  )}
-                />
-              </View>
-            </TouchableWithoutFeedback>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -316,13 +348,23 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
                   {selectedCity?.name}, {selectedCity?.state}
                 </Text>
 
-                {colleges.length > 0 ? (
+                {loadingColleges ? (
+                  <ActivityIndicator
+                    size="large"
+                    color={colors.systemGreen}
+                    style={{ marginTop: 40 }}
+                  />
+                ) : colleges.length > 0 ? (
                   colleges.map((college) => (
-                    <View key={college} style={styles.collegeRow}>
-                      <Text style={styles.collegeName}>{college}</Text>
+                    <View key={college.id} style={styles.collegeRow}>
+                      <Text style={styles.collegeName}>{college.name}</Text>
                       <TouchableOpacity
                         style={styles.joinButton}
-                        onPress={() => navigation.navigate('CollegeVerification')}
+                        onPress={() =>
+                          navigation.navigate('CollegeVerification', {
+                            college, // { id, name, location }
+                          })
+                        }
                       >
                         <Text style={styles.joinButtonText}>Join</Text>
                       </TouchableOpacity>
@@ -330,7 +372,7 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
                   ))
                 ) : (
                   <Text style={styles.noCommunitiesText}>
-                    No communities in your city yet 😔
+                    Sorry, we don't operate here yet 😔
                   </Text>
                 )}
               </View>

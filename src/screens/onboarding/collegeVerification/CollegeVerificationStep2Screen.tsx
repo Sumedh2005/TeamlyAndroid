@@ -8,15 +8,21 @@ import {
   StatusBar,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
+  ActivityIndicator,
   type TextInput as TextInputType,
 } from 'react-native';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
+import { supabase } from '../../../lib/supabase';
+import ProfileManager from '../../../services/ProfileManager';
 
 export default function CollegeVerificationStep2Screen({ navigation, route }: any) {
   const colors = useColors();
-  const { email } = route.params;
+  const { email, college } = route.params; // college: { id, name, location }
   const [otp, setOtp] = useState(['', '', '', '']);
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputs = useRef<TextInputType[]>([]);
 
   const handleChange = (text: string, index: number) => {
@@ -35,6 +41,87 @@ export default function CollegeVerificationStep2Screen({ navigation, route }: an
   };
 
   const isComplete = otp.every((d) => d.length === 1);
+
+  // ── Shared helper to call the send-college-otp edge function ──────────────
+  const callSendOtp = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/send-college-otp`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ email }),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error ?? 'Failed to send OTP');
+  };
+
+  // ── Verify OTP ─────────────────────────────────────────────────────────────
+  const handleVerify = async () => {
+    if (!isComplete) return;
+    setVerifying(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const userId = sessionData?.session?.user?.id;
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+
+      // 1. Verify OTP via edge function
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/verify-college-otp`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ email, otp: otp.join('') }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Invalid OTP', result.error ?? 'Verification failed. Try again.');
+        return;
+      }
+
+      // 2. Save college_id to the user's profile
+      if (userId && college?.id) {
+        await ProfileManager.saveCollegeId(userId, college.id);
+      }
+
+      // 3. Navigate to main app
+      navigation.navigate('MainApp');
+    } catch (err) {
+      console.error('Verify OTP error:', err);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // ── Resend OTP ─────────────────────────────────────────────────────────────
+  const handleResend = async () => {
+    setResending(true);
+    setOtp(['', '', '', '']);
+    inputs.current[0]?.focus();
+    try {
+      await callSendOtp();
+      Alert.alert('Sent!', `A new OTP has been sent to ${email}`);
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'Failed to resend OTP.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -116,12 +203,10 @@ export default function CollegeVerificationStep2Screen({ navigation, route }: an
 
         <Text style={styles.title}>Enter OTP</Text>
 
-        {/* Email display */}
         <View style={styles.emailBox}>
           <Text style={styles.emailText}>{email}</Text>
         </View>
 
-        {/* OTP boxes */}
         <View style={styles.otpContainer}>
           {otp.map((digit, index) => (
             <View
@@ -130,7 +215,9 @@ export default function CollegeVerificationStep2Screen({ navigation, route }: an
                 styles.otpBox,
                 {
                   borderColor:
-                    digit.length > 0 ? colors.systemGreen : colors.backgroundTertiary,
+                    digit.length > 0
+                      ? colors.systemGreen
+                      : colors.backgroundTertiary,
                 },
               ]}
             >
@@ -149,18 +236,27 @@ export default function CollegeVerificationStep2Screen({ navigation, route }: an
           ))}
         </View>
 
-        {/* Verify Button */}
         <TouchableOpacity
-          style={[styles.button, { opacity: isComplete ? 1 : 0.5 }]}
-          disabled={!isComplete}
-          onPress={() => navigation.navigate('MainApp')}
+          style={[
+            styles.button,
+            { opacity: isComplete && !verifying ? 1 : 0.5 },
+          ]}
+          disabled={!isComplete || verifying}
+          onPress={handleVerify}
         >
-          <Text style={styles.buttonText}>Verify</Text>
+          {verifying ? (
+            <ActivityIndicator color={colors.primaryWhite} />
+          ) : (
+            <Text style={styles.buttonText}>Verify</Text>
+          )}
         </TouchableOpacity>
 
-        {/* Resend */}
-        <TouchableOpacity onPress={() => {}}>
-          <Text style={styles.resendText}>Resend OTP</Text>
+        <TouchableOpacity onPress={handleResend} disabled={resending}>
+          {resending ? (
+            <ActivityIndicator color={colors.systemGreen} />
+          ) : (
+            <Text style={styles.resendText}>Resend OTP</Text>
+          )}
         </TouchableOpacity>
       </View>
     </TouchableWithoutFeedback>

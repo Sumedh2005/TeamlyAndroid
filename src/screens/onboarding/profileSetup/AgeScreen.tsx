@@ -9,9 +9,13 @@ import {
   StatusBar,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
+import AuthManager from '../../../lib/AuthManager';
+import ProfileManager from '../../../services/ProfileManager';
 
 const { width } = Dimensions.get('window');
 const TOTAL_STEPS = 5;
@@ -25,6 +29,7 @@ const ages = Array.from({ length: MAX_AGE - MIN_AGE + 1 }, (_, i) => MIN_AGE + i
 export default function AgeScreen({ navigation }: any) {
   const colors = useColors();
   const [selectedAge, setSelectedAge] = useState(DEFAULT_AGE);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const progress = 2 / TOTAL_STEPS;
 
@@ -36,6 +41,32 @@ export default function AgeScreen({ navigation }: any) {
     const age = MIN_AGE + index;
     if (age >= MIN_AGE && age <= MAX_AGE) {
       setSelectedAge(age);
+    }
+  };
+
+  // ── Save Handler ─────────────────────────────────────────────────────────────
+
+  const handleNext = async () => {
+    setIsLoading(true);
+    try {
+      let userId = await AuthManager.getCurrentUserId();
+      if (!userId) {
+        const session = await AuthManager.getCurrentSession();
+        userId = session?.user?.id ?? null;
+      }
+
+      if (!userId) {
+        Alert.alert('Session Expired', 'Could not find your session. Please log in again.');
+        return;
+      }
+
+      await ProfileManager.saveAge(userId, selectedAge);
+      navigation.navigate('SportSelection');
+
+    } catch (error: any) {
+      Alert.alert('Error', error?.message ?? 'Failed to save. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -87,7 +118,7 @@ export default function AgeScreen({ navigation }: any) {
       height: 56,
       paddingHorizontal: 48,
       borderRadius: 50,
-      backgroundColor: colors.systemGreen,
+      backgroundColor: isLoading ? colors.systemGreen + '80' : colors.systemGreen,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -120,9 +151,7 @@ export default function AgeScreen({ navigation }: any) {
         contentOffset={{ x: initialOffset, y: 0 }}
         onMomentumScrollEnd={handleScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={{
-          paddingHorizontal: ITEM_WIDTH,
-        }}
+        contentContainerStyle={{ paddingHorizontal: ITEM_WIDTH }}
         style={styles.agePicker}
       >
         {ages.map((age) => {
@@ -150,9 +179,13 @@ export default function AgeScreen({ navigation }: any) {
       <View style={styles.bottomContainer}>
         <TouchableOpacity
           style={styles.nextButton}
-          onPress={() => navigation.navigate('SportSelection')}
+          onPress={handleNext}
+          disabled={isLoading}
         >
-          <Text style={styles.nextButtonText}>Next</Text>
+          {isLoading
+            ? <ActivityIndicator color={colors.primaryWhite} />
+            : <Text style={styles.nextButtonText}>Next</Text>
+          }
         </TouchableOpacity>
       </View>
     </View>
