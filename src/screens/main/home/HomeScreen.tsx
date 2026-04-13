@@ -270,6 +270,7 @@ export default function HomeScreen({ navigation }: any) {
               slotsLeft={match.slotsLeft}
               totalSlots={match.totalSlots}
               goingCount={match.goingCount}
+              onPress={() => navigation.navigate('MatchInfo', { match })}
             />
           ))}
         </ScrollView>

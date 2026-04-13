@@ -98,7 +98,7 @@ const pastMatches = [
   },
 ];
 
-export default function MatchScreen() {
+export default function MatchScreen({ navigation }: any) {
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
 
@@ -240,6 +240,7 @@ export default function MatchScreen() {
               slotsLeft={match.slotsLeft}
               totalSlots={match.totalSlots}
               goingCount={match.goingCount}
+              onPress={() => navigation.navigate('MatchInfo', { match })}
             />
           ))}
         </ScrollView>
