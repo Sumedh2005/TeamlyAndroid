@@ -5,12 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import MatchCellCard from '../../../components/MatchCellCard';
+import SportsPostScreen from '../post/SportsPostScreen';
 
 const mockMatches = [
   {
@@ -91,7 +94,22 @@ export default function MatchesScreen({ navigation, route }: any) {
   const colors = useColors();
   const sport = route?.params?.sport ?? 'football';
   const [selectedDate, setSelectedDate] = useState(0);
+  const [showPost, setShowPost] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+  const [selectedAvailability, setSelectedAvailability] = useState<string[]>([]);
   const dates = getDates();
+
+  const toggleItem = (item: string, list: string[], setList: (v: string[]) => void) => {
+    setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
+  };
+
+  const clearAll = () => {
+    setSelectedSkills([]);
+    setSelectedTimes([]);
+    setSelectedAvailability([]);
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -101,8 +119,6 @@ export default function MatchesScreen({ navigation, route }: any) {
     safeArea: {
       flex: 1,
     },
-
-    // Header
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -138,8 +154,6 @@ export default function MatchesScreen({ navigation, route }: any) {
       paddingHorizontal: 20,
       marginBottom: 16,
     },
-
-    // Date strip
     dateStrip: {
       paddingLeft: 20,
       marginBottom: 16,
@@ -161,11 +175,88 @@ export default function MatchesScreen({ navigation, route }: any) {
       fontFamily: FontFamily.regular,
       marginTop: 2,
     },
-
-    // Cards
     scrollContent: {
       paddingHorizontal: 20,
       paddingBottom: 100,
+    },
+
+    // Filter Modal
+    filterOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    filterSheet: {
+      backgroundColor: colors.backgroundPrimary,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingBottom: 48,
+      paddingTop: 12,
+    },
+    filterHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.backgroundQuaternary,
+      alignSelf: 'center',
+      marginBottom: 20,
+    },
+    filterHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    filterClear: {
+      fontSize: FontSize.sm,
+      fontFamily: FontFamily.medium,
+      color: colors.textSecondary,
+    },
+    filterTitle: {
+      fontSize: FontSize.md,
+      fontFamily: FontFamily.bold,
+      color: colors.textPrimary,
+    },
+    filterApply: {
+      fontSize: FontSize.sm,
+      fontFamily: FontFamily.semiBold,
+      color: colors.systemGreen,
+    },
+    filterSectionTitle: {
+      fontSize: FontSize.md,
+      fontFamily: FontFamily.bold,
+      color: colors.textPrimary,
+      marginBottom: 12,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginBottom: 24,
+    },
+    filterChip: {
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 50,
+      borderWidth: 1.5,
+    },
+    filterChipText: {
+      fontSize: FontSize.sm,
+      fontFamily: FontFamily.medium,
+    },
+    applyButton: {
+      height: 52,
+      borderRadius: 50,
+      backgroundColor: colors.systemGreen,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    applyButtonText: {
+      fontSize: FontSize.md,
+      fontFamily: FontFamily.semiBold,
+      color: colors.primaryWhite,
     },
   });
 
@@ -179,10 +270,10 @@ export default function MatchesScreen({ navigation, route }: any) {
             <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity style={styles.iconButton} onPress={() => setShowFilter(true)}>
               <Ionicons name="options-outline" size={20} color={colors.systemGreen} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity style={styles.iconButton} onPress={() => setShowPost(true)}>
               <Ionicons name="add" size={22} color={colors.systemGreen} />
             </TouchableOpacity>
           </View>
@@ -257,9 +348,132 @@ export default function MatchesScreen({ navigation, route }: any) {
               slotsLeft={match.slotsLeft}
               totalSlots={match.totalSlots}
               goingCount={match.goingCount}
+              onPress={() => navigation.navigate('MatchInfo', { match })}
             />
           ))}
         </ScrollView>
+
+        {/* Sports Post Modal */}
+        <SportsPostScreen
+          visible={showPost}
+          onClose={() => setShowPost(false)}
+          sport={sport}
+        />
+
+        {/* Filter Modal */}
+        <Modal
+          visible={showFilter}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowFilter(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowFilter(false)}>
+            <View style={styles.filterOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.filterSheet}>
+                  <View style={styles.filterHandle} />
+
+                  {/* Header */}
+                  <View style={styles.filterHeader}>
+                    <TouchableOpacity onPress={clearAll}>
+                      <Text style={styles.filterClear}>Clear</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.filterTitle}>Filters</Text>
+                    <TouchableOpacity onPress={() => setShowFilter(false)}>
+                      <Text style={styles.filterApply}>Apply</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Skill */}
+                  <Text style={styles.filterSectionTitle}>Skill</Text>
+                  <View style={styles.filterRow}>
+                    {['Beginner', 'Intermediate', 'Experienced', 'Advanced'].map((skill) => {
+                      const isSelected = selectedSkills.includes(skill);
+                      return (
+                        <TouchableOpacity
+                          key={skill}
+                          style={[
+                            styles.filterChip,
+                            {
+                              backgroundColor: isSelected ? `${colors.systemGreen}22` : colors.backgroundSecondary,
+                              borderColor: isSelected ? colors.systemGreen : 'transparent',
+                            },
+                          ]}
+                          onPress={() => toggleItem(skill, selectedSkills, setSelectedSkills)}
+                        >
+                          <Text style={[styles.filterChipText, { color: isSelected ? colors.systemGreen : colors.textPrimary }]}>
+                            {skill}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Time */}
+                  <Text style={styles.filterSectionTitle}>Time</Text>
+                  <View style={styles.filterRow}>
+                    {[
+                      { label: '☀️  Day', value: 'day' },
+                      { label: '🌙  Night', value: 'night' },
+                    ].map((time) => {
+                      const isSelected = selectedTimes.includes(time.value);
+                      return (
+                        <TouchableOpacity
+                          key={time.value}
+                          style={[
+                            styles.filterChip,
+                            {
+                              backgroundColor: isSelected ? `${colors.systemGreen}22` : colors.backgroundSecondary,
+                              borderColor: isSelected ? colors.systemGreen : 'transparent',
+                            },
+                          ]}
+                          onPress={() => toggleItem(time.value, selectedTimes, setSelectedTimes)}
+                        >
+                          <Text style={[styles.filterChipText, { color: isSelected ? colors.systemGreen : colors.textPrimary }]}>
+                            {time.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Availability */}
+                  <Text style={styles.filterSectionTitle}>Availability</Text>
+                  <View style={styles.filterRow}>
+                    {[
+                      { label: '🔥  Filling fast', value: 'filling' },
+                      { label: '✅  Available', value: 'available' },
+                    ].map((avail) => {
+                      const isSelected = selectedAvailability.includes(avail.value);
+                      return (
+                        <TouchableOpacity
+                          key={avail.value}
+                          style={[
+                            styles.filterChip,
+                            {
+                              backgroundColor: isSelected ? `${colors.systemGreen}22` : colors.backgroundSecondary,
+                              borderColor: isSelected ? colors.systemGreen : 'transparent',
+                            },
+                          ]}
+                          onPress={() => toggleItem(avail.value, selectedAvailability, setSelectedAvailability)}
+                        >
+                          <Text style={[styles.filterChipText, { color: isSelected ? colors.systemGreen : colors.textPrimary }]}>
+                            {avail.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Apply Button */}
+                  
+
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+
       </SafeAreaView>
     </View>
   );
