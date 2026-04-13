@@ -5,21 +5,63 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
+import AuthManager from '../../../lib/AuthManager';
+import ProfileManager from '../../../services/ProfileManager';
 
 const TOTAL_STEPS = 5;
 
 export default function NameAndDetailsScreen({ navigation }: any) {
   const colors = useColors();
   const [name, setName] = useState('');
-  const [gender, setGender] = useState<'male' | 'female' | null>(null);
+  const [gender, setGender] = useState<'Male' | 'Female' | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const isNextEnabled = name.trim().length > 0 && gender !== null;
+  const isNextEnabled = name.trim().length > 0 && gender !== null && !isLoading;
   const progress = 1 / TOTAL_STEPS;
+
+  // ── Save Handler ─────────────────────────────────────────────────────────────
+
+  const handleNext = async () => {
+  if (!isNextEnabled) return;
+
+  setIsLoading(true);
+  try {
+    // Try getUser first, fall back to getSession
+    let userId = await AuthManager.getCurrentUserId();
+
+    if (!userId) {
+      // Fallback: grab from session directly
+      const session = await AuthManager.getCurrentSession();
+      userId = session?.user?.id ?? null;
+    }
+
+    console.log('userId for save:', userId); // ← check this in your terminal
+
+    if (!userId) {
+      Alert.alert('Session Expired', 'Could not find your session. Please log in again.');
+      setIsLoading(false);
+      return;
+    }
+
+    await ProfileManager.saveNameAndGender(userId, name.trim(), gender!);
+    console.log('Saved successfully, navigating to Age');
+    navigation.navigate('Age');
+
+  } catch (error: any) {
+    console.error('handleNext error:', error);
+    Alert.alert('Error', error?.message ?? 'Failed to save. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  // ── Styles ───────────────────────────────────────────────────────────────────
 
   const styles = StyleSheet.create({
     container: {
@@ -94,6 +136,8 @@ export default function NameAndDetailsScreen({ navigation }: any) {
     },
   });
 
+  // ── Render ───────────────────────────────────────────────────────────────────
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
@@ -114,6 +158,7 @@ export default function NameAndDetailsScreen({ navigation }: any) {
         value={name}
         onChangeText={setName}
         autoCapitalize="words"
+        editable={!isLoading}
       />
 
       {/* Gender Selection */}
@@ -122,15 +167,15 @@ export default function NameAndDetailsScreen({ navigation }: any) {
           style={[
             styles.genderButton,
             {
-              backgroundColor:
-                gender === 'male'
-                  ? `${colors.systemGreen}22`
-                  : colors.backgroundSecondary,
-              borderWidth: gender === 'male' ? 2 : 0,
-              borderColor: gender === 'male' ? colors.systemGreen : 'transparent',
+              backgroundColor: gender === 'Male'
+                ? `${colors.systemGreen}22`
+                : colors.backgroundSecondary,
+              borderWidth: gender === 'Male' ? 2 : 0,
+              borderColor: gender === 'Male' ? colors.systemGreen : 'transparent',
             },
           ]}
-          onPress={() => setGender('male')}
+          onPress={() => setGender('Male')}
+          disabled={isLoading}
         >
           <Text style={[styles.genderIcon, { color: '#007AFF' }]}>♂</Text>
           <Text style={styles.genderLabel}>Male</Text>
@@ -140,15 +185,15 @@ export default function NameAndDetailsScreen({ navigation }: any) {
           style={[
             styles.genderButton,
             {
-              backgroundColor:
-                gender === 'female'
-                  ? `${colors.systemGreen}22`
-                  : colors.backgroundSecondary,
-              borderWidth: gender === 'female' ? 2 : 0,
-              borderColor: gender === 'female' ? colors.systemGreen : 'transparent',
+              backgroundColor: gender === 'Female'
+                ? `${colors.systemGreen}22`
+                : colors.backgroundSecondary,
+              borderWidth: gender === 'Female' ? 2 : 0,
+              borderColor: gender === 'Female' ? colors.systemGreen : 'transparent',
             },
           ]}
-          onPress={() => setGender('female')}
+          onPress={() => setGender('Female')}
+          disabled={isLoading}
         >
           <Text style={[styles.genderIcon, { color: '#FF2D55' }]}>♀</Text>
           <Text style={styles.genderLabel}>Female</Text>
@@ -167,20 +212,19 @@ export default function NameAndDetailsScreen({ navigation }: any) {
             },
           ]}
           disabled={!isNextEnabled}
-          onPress={() => navigation.navigate('Age')}
+          onPress={handleNext}
         >
-          <Text
-            style={[
-              styles.nextButtonText,
-              {
-                color: isNextEnabled
-                  ? colors.primaryWhite
-                  : colors.textTertiary,
-              },
-            ]}
-          >
-            Next
-          </Text>
+          {isLoading
+            ? <ActivityIndicator color={colors.primaryWhite} />
+            : (
+              <Text style={[
+                styles.nextButtonText,
+                { color: isNextEnabled ? colors.primaryWhite : colors.textTertiary },
+              ]}>
+                Next
+              </Text>
+            )
+          }
         </TouchableOpacity>
       </View>
     </View>

@@ -8,10 +8,14 @@ import {
   Modal,
   Image,
   TouchableWithoutFeedback,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
+import AuthManager from '../../../lib/AuthManager';
+import ProfileManager from '../../../services/ProfileManager';
 
 const TOTAL_STEPS = 5;
 
@@ -19,6 +23,7 @@ export default function AvatarSelectScreen({ navigation }: any) {
   const colors = useColors();
   const [image, setImage] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const progress = 5 / TOTAL_STEPS;
 
   const takePhoto = async () => {
@@ -28,7 +33,7 @@ export default function AvatarSelectScreen({ navigation }: any) {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.7,
     });
     if (!result.canceled) setImage(result.assets[0].uri);
   };
@@ -40,10 +45,47 @@ export default function AvatarSelectScreen({ navigation }: any) {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.7,
     });
     if (!result.canceled) setImage(result.assets[0].uri);
   };
+
+  // ── Handlers ─────────────────────────────────────────────────────────────────
+
+  const handleNext = async () => {
+    if (!image) {
+      // No image selected, treat same as skip
+      navigation.navigate('SearchingCommunities');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      let userId = await AuthManager.getCurrentUserId();
+      if (!userId) {
+        const session = await AuthManager.getCurrentSession();
+        userId = session?.user?.id ?? null;
+      }
+      if (!userId) {
+        Alert.alert('Session Expired', 'Please log in again.');
+        return;
+      }
+
+      await ProfileManager.uploadProfilePicture(userId, image);
+      navigation.navigate('SearchingCommunities');
+
+    } catch (error: any) {
+      Alert.alert('Upload Failed', error?.message ?? 'Failed to upload photo. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSkip = () => {
+    navigation.navigate('SearchingCommunities');
+  };
+
+  // ── Styles ───────────────────────────────────────────────────────────────────
 
   const styles = StyleSheet.create({
     container: {
@@ -130,7 +172,9 @@ export default function AvatarSelectScreen({ navigation }: any) {
       width: '100%',
       height: 56,
       borderRadius: 50,
-      backgroundColor: colors.systemGreen,
+      backgroundColor: isLoading
+        ? colors.systemGreen + '80'
+        : colors.systemGreen,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -139,8 +183,6 @@ export default function AvatarSelectScreen({ navigation }: any) {
       fontFamily: FontFamily.semiBold,
       color: colors.primaryWhite,
     },
-
-    // Modal
     modalOverlay: {
       flex: 1,
       justifyContent: 'flex-end',
@@ -197,22 +239,22 @@ export default function AvatarSelectScreen({ navigation }: any) {
     },
   });
 
+  // ── Render ───────────────────────────────────────────────────────────────────
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Progress Bar */}
       <View style={styles.progressBarContainer}>
         <View style={styles.progressBar} />
       </View>
 
-      {/* Title */}
       <Text style={styles.title}>Add a profile pic</Text>
 
-      {/* Avatar */}
       <TouchableOpacity
         style={styles.avatarContainer}
         onPress={() => setShowModal(true)}
+        disabled={isLoading}
       >
         {image ? (
           <Image source={{ uri: image }} style={styles.avatarImage} />
@@ -227,19 +269,25 @@ export default function AvatarSelectScreen({ navigation }: any) {
         )}
       </TouchableOpacity>
 
-      {/* Bottom Buttons */}
       <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={() => navigation.navigate('SearchingCommunities')}
-        >
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
+        {/* Skip only shown when no image selected and not loading */}
+        {!image && !isLoading && (
+          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.nextButton}
-          onPress={() => navigation.navigate('SearchingCommunities')}
+          onPress={handleNext}
+          disabled={isLoading}
         >
-          <Text style={styles.nextButtonText}>Next</Text>
+          {isLoading
+            ? <ActivityIndicator color={colors.primaryWhite} />
+            : <Text style={styles.nextButtonText}>
+                {image ? 'Next' : 'Skip'}
+              </Text>
+          }
         </TouchableOpacity>
       </View>
 
@@ -256,7 +304,6 @@ export default function AvatarSelectScreen({ navigation }: any) {
               <View style={styles.modalContainer}>
                 <View style={styles.modalHandle} />
                 <Text style={styles.modalTitle}>Add profile picture</Text>
-
                 <View style={styles.optionContainer}>
                   <TouchableOpacity style={styles.optionRow} onPress={takePhoto}>
                     <Text style={styles.optionText}>Take photo</Text>
