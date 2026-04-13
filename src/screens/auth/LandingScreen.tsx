@@ -199,50 +199,58 @@ export default function LandingScreen({ navigation }: any) {
       </View>
 
       {/* Login Modal */}
-      <Modal
-        visible={activeModal === 'login'}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setActiveModal('none')}
-      >
-        <TouchableWithoutFeedback onPress={() => setActiveModal('none')}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContainer}>
-                <LoginScreen
-                  onClose={() => setActiveModal('none')}
-                  onSwitchToSignup={() => setActiveModal('signup')}
-                />
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+<Modal
+  visible={activeModal === 'login'}
+  animationType="slide"
+  transparent
+  onRequestClose={() => setActiveModal('none')}
+>
+  <TouchableWithoutFeedback onPress={() => setActiveModal('none')}>
+    <View style={styles.modalOverlay}>
+      <TouchableWithoutFeedback>
+        <View style={styles.modalContainer}>
+          <LoginScreen
+            onClose={() => setActiveModal('none')}
+            onSwitchToSignup={() => setActiveModal('signup')}
+            onLoginSuccess={(isOnboardingComplete) => {
+              setActiveModal('none');
+              if (isOnboardingComplete) {
+                navigation.navigate('MainApp'); 
+              } else {
+                navigation.navigate('Onboarding');
+              }
+            }}
+          />
+        </View>
+      </TouchableWithoutFeedback>
+    </View>
+  </TouchableWithoutFeedback>
+</Modal>
 
-      {/* Signup Modal */}
-      <Modal
-        visible={activeModal === 'signup'}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setActiveModal('none')}
-      >
-        <TouchableWithoutFeedback onPress={() => setActiveModal('none')}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContainer}>
-                <RegisterScreen
-                  onClose={() => setActiveModal('none')}
-                  onSwitchToLogin={() => setActiveModal('login')}
-                  onSignUp={() => {
-                    setActiveModal('none');
-                    navigation.navigate('Onboarding');
-                  }}
-                />
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+{/* Signup Modal */}
+<Modal
+  visible={activeModal === 'signup'}
+  animationType="slide"
+  transparent
+  onRequestClose={() => setActiveModal('none')}
+>
+  <TouchableWithoutFeedback onPress={() => setActiveModal('none')}>
+    <View style={styles.modalOverlay}>
+      <TouchableWithoutFeedback>
+        <View style={styles.modalContainer}>
+          <RegisterScreen
+            onClose={() => setActiveModal('none')}
+            onSwitchToLogin={() => setActiveModal('login')}
+            onSignUpSuccess={() => {
+              setActiveModal('none');
+              navigation.navigate('Onboarding'); // new users always go to onboarding
+            }}
+          />
+        </View>
+      </TouchableWithoutFeedback>
+    </View>
+  </TouchableWithoutFeedback>
+</Modal>
     </View>
   );
 }
