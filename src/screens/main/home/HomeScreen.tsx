@@ -36,7 +36,7 @@ const mockMatches = [
   },
   {
     id: '2',
-    venue: 'El Classico Turf, Potheri',
+    venue: 'El Classico Turf, Chennai',
     date: '08/04/26',
     startTime: '6:00 PM',
     endTime: '7:00 PM',
