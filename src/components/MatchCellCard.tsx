@@ -3,8 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
+  TouchableOpacity,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../theme/colors';
 import { FontFamily, FontSize } from '../theme/fonts';
 
@@ -16,6 +17,7 @@ interface MatchCellCardProps {
   slotsLeft: number;
   totalSlots: number;
   goingCount: number;
+  onPress?: () => void;
 }
 
 const getSlotColor = (slotsLeft: number, totalSlots: number): string => {
@@ -40,6 +42,7 @@ export default function MatchCellCard({
   slotsLeft,
   totalSlots,
   goingCount,
+  onPress,
 }: MatchCellCardProps) {
   const colors = useColors();
   const slotColor = getSlotColor(slotsLeft, totalSlots);
@@ -101,36 +104,38 @@ export default function MatchCellCard({
   });
 
   return (
-    <View style={styles.card}>
-      {/* Venue */}
-      <View style={styles.venueRow}>
-        <Text style={{ fontSize: 18 }}>📍</Text>
-        <Text style={styles.venueName}>{venue}</Text>
-      </View>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <View style={styles.card}>
+        {/* Venue */}
+        <View style={styles.venueRow}>
+          <Text style={{ fontSize: 18 }}>📍</Text>
+          <Text style={styles.venueName}>{venue}</Text>
+        </View>
 
-      {/* Date Row */}
-      <View style={styles.infoRow}>
-        <View style={styles.infoLeft}>
-          <Ionicons name="calendar-outline" size={18} color={colors.textPrimary} />
-          <Text style={styles.infoText}>{date}</Text>
+        {/* Date Row */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoLeft}>
+            <Ionicons name="calendar-outline" size={18} color={colors.textPrimary} />
+            <Text style={styles.infoText}>{date}</Text>
+          </View>
+          <View style={[styles.slotBadge, { backgroundColor: slotColor }]}>
+            <Text style={styles.slotText}>{slotsLeft} slots left</Text>
+          </View>
         </View>
-        <View style={[styles.slotBadge, { backgroundColor: slotColor }]}>
-          <Text style={styles.slotText}>{slotsLeft} slots left</Text>
-        </View>
-      </View>
 
-      {/* Time Row */}
-      <View style={styles.infoRow}>
-        <View style={styles.infoLeft}>
-          <Ionicons
-            name={timeIcon === 'sunny' ? 'sunny-outline' : 'moon-outline'}
-            size={18}
-            color={colors.textPrimary}
-          />
-          <Text style={styles.infoText}>{startTime} - {endTime}</Text>
+        {/* Time Row */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoLeft}>
+            <Ionicons
+              name={timeIcon === 'sunny' ? 'sunny-outline' : 'moon-outline'}
+              size={18}
+              color={colors.textPrimary}
+            />
+            <Text style={styles.infoText}>{startTime} - {endTime}</Text>
+          </View>
+          <Text style={styles.goingText}>{goingCount} / {totalSlots} going</Text>
         </View>
-        <Text style={styles.goingText}>{goingCount} / {totalSlots} going</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }

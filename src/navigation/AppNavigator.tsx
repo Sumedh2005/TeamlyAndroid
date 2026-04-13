@@ -4,17 +4,22 @@ import LandingScreen from '../screens/auth/LandingScreen';
 import OnboardingNavigator from './OnboardingNavigator';
 import MainTabNavigator from './MainTabNavigator';
 import MatchesScreen from '../screens/main/home/MatchesScreen';
+import MatchInfoScreen from '../screens/main/home/MatchInfoScreen';
+
+// inside Stack.Navigator add:
+
 
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Landing">
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="MainApp">
         <Stack.Screen name="Landing" component={LandingScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
         <Stack.Screen name="MainApp" component={MainTabNavigator} />
         <Stack.Screen name="Matches" component={MatchesScreen} />
+        <Stack.Screen name="MatchInfo" component={MatchInfoScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
