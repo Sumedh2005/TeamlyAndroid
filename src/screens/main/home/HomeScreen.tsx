@@ -26,7 +26,7 @@ const sports = [
 const mockMatches = [
   {
     id: '1',
-    venue: 'Moonrise Turf',
+    venue: 'Kalidas Turf',
     date: '08/04/26',
     startTime: '7:00 PM',
     endTime: '8:00 PM',
