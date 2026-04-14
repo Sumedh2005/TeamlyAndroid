@@ -1,4 +1,3 @@
-// src/screens/main/teams/CreateTeamSheet.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -6,12 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Modal,
   ScrollView,
-  KeyboardAvoidingView,
+  Modal,
+  TouchableWithoutFeedback,
+  Keyboard,
   Platform,
-  Pressable,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize, LineHeight } from '../../../theme/fonts';
 
@@ -35,6 +35,7 @@ const MOCK_FRIENDS = [
   { id: '8', name: 'Karan' },
   { id: '9', name: 'Meera' },
   { id: '10', name: 'Rohan' },
+  { id: '11', name: 'Arjun' },
 ];
 
 export interface CreatedTeam {
@@ -71,333 +72,306 @@ export default function CreateTeamSheet({ visible, onClose, onCreated }: Props) 
 
   const handleCreate = () => {
     if (!selectedSport || !teamName.trim()) return;
-    const team: CreatedTeam = { sport: selectedSport, name: teamName.trim(), members: invitedFriends };
-    onCreated(team);
-    // Reset
+    onCreated({ sport: selectedSport, name: teamName.trim(), members: invitedFriends });
+    // Reset form
     setSelectedSport(null);
     setTeamName('');
     setInvitedFriends([]);
     setFriendSearch('');
     setSportExpanded(false);
     setFriendsExpanded(false);
-  };
-
-  const handleClose = () => {
-    setSportExpanded(false);
-    setFriendsExpanded(false);
     onClose();
   };
+
+  const isCreateEnabled = !!selectedSport && teamName.trim().length > 0;
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
       transparent
-      onRequestClose={handleClose}
+      onRequestClose={onClose}
     >
-      {/* Dim backdrop */}
-      <Pressable style={styles.backdrop} onPress={handleClose} />
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.4)' }]}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={[styles.sheet, { backgroundColor: colors.backgroundSecondary }]}>
+              <View style={[styles.handle, { backgroundColor: colors.backgroundQuaternary }]} />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
-        pointerEvents="box-none"
-      >
-        <View style={[styles.sheet, { backgroundColor: colors.backgroundSecondary }]}>
-          {/* Drag handle */}
-          <View style={[styles.handle, { backgroundColor: colors.backgroundQuaternary }]} />
+              {/* Close Button */}
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <Ionicons name="close" size={18} color={colors.textPrimary} />
+              </TouchableOpacity>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.scrollContent}
-          >
-            {/* Select Sport Dropdown */}
-            <TouchableOpacity
-              style={[styles.dropdown, { backgroundColor: colors.backgroundTertiary }]}
-              onPress={() => {
-                setSportExpanded(prev => !prev);
-                setFriendsExpanded(false);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.dropdownLabel, { color: selectedSportObj ? colors.textPrimary : colors.textTertiary }]}>
-                {selectedSportObj
-                  ? `${selectedSportObj.emoji}  ${selectedSportObj.label}`
-                  : 'Select Sport'}
-              </Text>
-              <Text style={[styles.chevron, { color: colors.textTertiary }]}>
-                {sportExpanded ? '▲' : '▼'}
-              </Text>
-            </TouchableOpacity>
+              <ScrollView 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Select Sport */}
+                <TouchableOpacity
+                  style={[styles.dropdown, { backgroundColor: colors.backgroundPrimary }]}
+                  onPress={() => {
+                    setSportExpanded(!sportExpanded);
+                    setFriendsExpanded(false);
+                  }}
+                >
+                  <Text style={[styles.dropdownText, {
+                    color: selectedSportObj ? colors.textPrimary : colors.textTertiary
+                  }]}>
+                    {selectedSportObj
+                      ? `${selectedSportObj.emoji}  ${selectedSportObj.label}`
+                      : 'Select sport'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.textTertiary} />
+                </TouchableOpacity>
 
-            {/* Sport Options */}
-            {sportExpanded && (
-              <View style={[styles.dropdownMenu, { backgroundColor: colors.backgroundTertiary }]}>
-                {sports.map(sport => (
-                  <TouchableOpacity
-                    key={sport.id}
-                    style={styles.sportOption}
-                    onPress={() => {
-                      setSelectedSport(sport.id);
-                      setSportExpanded(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.sportEmoji}>{sport.emoji}</Text>
-                    <Text style={[styles.sportLabel, { color: colors.textPrimary }]}>
-                      {sport.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Team Name Input */}
-            <View style={[styles.input, { backgroundColor: colors.backgroundTertiary }]}>
-              <TextInput
-                style={[styles.inputText, { color: colors.textPrimary }]}
-                placeholder="Team name"
-                placeholderTextColor={colors.textTertiary}
-                value={teamName}
-                onChangeText={setTeamName}
-              />
-            </View>
-
-            {/* Select Friends Dropdown */}
-            <TouchableOpacity
-              style={[styles.dropdown, { backgroundColor: colors.backgroundTertiary }]}
-              onPress={() => {
-                setFriendsExpanded(prev => !prev);
-                setSportExpanded(false);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.dropdownLabel, { color: colors.textPrimary }]}>
-                {`Select friends (${MOCK_FRIENDS.length})`}
-              </Text>
-              <Text style={[styles.chevron, { color: colors.textTertiary }]}>
-                {friendsExpanded ? '▲' : '▼'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Friends List */}
-            {friendsExpanded && (
-              <View style={[styles.dropdownMenu, { backgroundColor: colors.backgroundTertiary }]}>
-                {/* Friend Search */}
-                <View style={[styles.friendSearch, { backgroundColor: colors.backgroundSecondary }]}>
-                  <Text style={[styles.searchIcon, { color: colors.textTertiary }]}>🔍</Text>
-                  <TextInput
-                    style={[styles.friendSearchInput, { color: colors.textPrimary }]}
-                    placeholder="Search friends"
-                    placeholderTextColor={colors.textTertiary}
-                    value={friendSearch}
-                    onChangeText={setFriendSearch}
-                  />
-                </View>
-
-                {filteredFriends.map(friend => {
-                  const invited = invitedFriends.includes(friend.id);
-                  return (
-                    <View key={friend.id} style={styles.friendRow}>
-                      <View style={styles.avatarCircle}>
-                        <Text style={styles.avatarIcon}>👤</Text>
-                      </View>
-                      <Text style={[styles.friendName, { color: colors.textPrimary }]}>
-                        {friend.name}
-                      </Text>
+                {sportExpanded && (
+                  <View style={[styles.dropdownList, { backgroundColor: colors.backgroundPrimary }]}>
+                    {sports.map(sport => (
                       <TouchableOpacity
-                        style={[
-                          styles.inviteButton,
-                          {
-                            backgroundColor: invited
-                              ? colors.backgroundQuaternary
-                              : colors.systemGreen,
-                          },
-                        ]}
-                        onPress={() => toggleInvite(friend.id)}
-                        activeOpacity={0.8}
+                        key={sport.id}
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          setSelectedSport(sport.id);
+                          setSportExpanded(false);
+                        }}
                       >
-                        <Text
-                          style={[
-                            styles.inviteText,
-                            { color: invited ? colors.textSecondary : '#FFFFFF' },
-                          ]}
-                        >
-                          {invited ? 'Invited' : 'Invite'}
+                        <Text style={{ fontSize: 20 }}>{sport.emoji}</Text>
+                        <Text style={[styles.dropdownItemText, { color: colors.textPrimary }]}>
+                          {sport.label}
                         </Text>
                       </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
+                    ))}
+                  </View>
+                )}
 
-            {/* Create Button */}
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={[
-                  styles.createButton,
-                  {
-                    backgroundColor: colors.systemGreen,
-                    opacity: selectedSport && teamName.trim() ? 1 : 0.5,
-                  },
-                ]}
-                onPress={handleCreate}
-                activeOpacity={0.85}
-                disabled={!selectedSport || !teamName.trim()}
-              >
-                <Text style={styles.createButtonText}>Create</Text>
-              </TouchableOpacity>
+                {/* Team Name */}
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.backgroundPrimary, color: colors.textPrimary }]}
+                  placeholder="Team name"
+                  placeholderTextColor={colors.textTertiary}
+                  value={teamName}
+                  onChangeText={setTeamName}
+                />
+
+                {/* Select Friends */}
+                <TouchableOpacity
+                  style={[styles.dropdown, { backgroundColor: colors.backgroundPrimary }]}
+                  onPress={() => {
+                    setFriendsExpanded(!friendsExpanded);
+                    setSportExpanded(false);
+                  }}
+                >
+                  <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>
+                    Select friends ({MOCK_FRIENDS.length})
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.textTertiary} />
+                </TouchableOpacity>
+
+                {friendsExpanded && (
+                  <View style={[styles.dropdownList, { backgroundColor: colors.backgroundPrimary }]}>
+                    {/* Search Bar */}
+                    <View style={[styles.searchContainer, { borderBottomColor: colors.backgroundTertiary }]}>
+                      <Ionicons name="search" size={18} color={colors.textTertiary} />
+                      <TextInput
+                        style={[styles.searchInput, { color: colors.textPrimary }]}
+                        placeholder="Search friends"
+                        placeholderTextColor={colors.textTertiary}
+                        value={friendSearch}
+                        onChangeText={setFriendSearch}
+                      />
+                    </View>
+
+                    {filteredFriends.map(friend => {
+                      const invited = invitedFriends.includes(friend.id);
+                      return (
+                        <TouchableOpacity
+                          key={friend.id}
+                          style={styles.friendItem}
+                          onPress={() => toggleInvite(friend.id)}
+                        >
+                          <View style={[styles.avatar, { backgroundColor: colors.backgroundTertiary }]}>
+                            <Text style={styles.avatarText}>👤</Text>
+                          </View>
+                          <Text style={[styles.friendName, { color: colors.textPrimary }]}>
+                            {friend.name}
+                          </Text>
+                          <View style={[
+                            styles.inviteBadge,
+                            { backgroundColor: invited ? colors.backgroundTertiary : colors.systemGreen }
+                          ]}>
+                            <Text style={[
+                              styles.inviteText,
+                              { color: invited ? colors.textSecondary : '#FFFFFF' }
+                            ]}>
+                              {invited ? 'Invited' : 'Invite'}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+
+                    {filteredFriends.length === 0 && (
+                      <View style={styles.emptyContainer}>
+                        <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
+                          No friends found
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Create Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.createButton,
+                    { backgroundColor: colors.systemGreen, opacity: isCreateEnabled ? 1 : 0.45 }
+                  ]}
+                  onPress={handleCreate}
+                  disabled={!isCreateEnabled}
+                >
+                  <Text style={styles.createButtonText}>Create Team</Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
-          </ScrollView>
+          </TouchableWithoutFeedback>
         </View>
-      </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  keyboardAvoid: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    justifyContent: 'flex-end',
   },
   sheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 48,
     paddingTop: 12,
-    maxHeight: '85%',
+    maxHeight: '90%',
   },
   handle: {
     width: 40,
-    height: 5,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 14,
-  },
-  dropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  dropdownLabel: {
-    fontSize: FontSize.md,
-    fontFamily: FontFamily.medium,
-    lineHeight: LineHeight.md,
-  },
-  chevron: {
-    fontSize: 12,
-    fontFamily: FontFamily.regular,
-  },
-  dropdownMenu: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    paddingVertical: 8,
-  },
-  sportOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  sportEmoji: {
-    fontSize: 22,
-    marginRight: 16,
-  },
-  sportLabel: {
-    fontSize: FontSize.md,
-    fontFamily: FontFamily.semiBold,
-    lineHeight: LineHeight.md,
-  },
-  input: {
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  inputText: {
-    fontSize: FontSize.md,
-    fontFamily: FontFamily.regular,
-    padding: 0,
-  },
-  friendSearch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    marginHorizontal: 12,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  searchIcon: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  friendSearchInput: {
-    flex: 1,
-    fontSize: FontSize.md,
-    fontFamily: FontFamily.regular,
-    padding: 0,
-  },
-  friendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  avatarCircle: {
+  closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#007AFF22',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  dropdown: {
+    height: 52,
+    borderRadius: 50,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  dropdownText: {
+    fontSize: FontSize.md,
+    fontFamily: FontFamily.regular,
+  },
+  dropdownList: {
+    borderRadius: 16,
+    marginTop: -4,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  dropdownItemText: {
+    fontSize: FontSize.md,
+    fontFamily: FontFamily.regular,
+  },
+  input: {
+    height: 52,
+    borderRadius: 50,
+    paddingHorizontal: 20,
+    fontSize: FontSize.md,
+    fontFamily: FontFamily.regular,
+    marginBottom: 12,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.regular,
+    padding: 0,
+  },
+  friendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
-  avatarIcon: {
+  avatarText: {
     fontSize: 18,
   },
   friendName: {
     flex: 1,
     fontSize: FontSize.md,
     fontFamily: FontFamily.medium,
-    lineHeight: LineHeight.md,
   },
-  inviteButton: {
+  inviteBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
   },
   inviteText: {
     fontSize: FontSize.sm,
     fontFamily: FontFamily.semiBold,
   },
-  footer: {
+  emptyContainer: {
+    paddingVertical: 32,
     alignItems: 'center',
-    marginTop: 8,
+  },
+  emptyText: {
+    fontSize: FontSize.md,
+    fontFamily: FontFamily.regular,
   },
   createButton: {
-    borderRadius: 28,
-    paddingHorizontal: 64,
-    paddingVertical: 16,
+    height: 52,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 24,
   },
   createButtonText: {
-    color: '#FFFFFF',
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontFamily: FontFamily.semiBold,
-    lineHeight: LineHeight.lg,
+    color: '#FFFFFF',
   },
 });
