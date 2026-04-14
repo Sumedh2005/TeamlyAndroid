@@ -5,9 +5,7 @@ import OnboardingNavigator from './OnboardingNavigator';
 import MainTabNavigator from './MainTabNavigator';
 import MatchesScreen from '../screens/main/home/MatchesScreen';
 import MatchInfoScreen from '../screens/main/home/MatchInfoScreen';
-
-// inside Stack.Navigator add:
-
+import TeamChatScreen from '../screens/main/teams/TeamChatScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -20,6 +18,7 @@ export default function AppNavigator() {
         <Stack.Screen name="MainApp" component={MainTabNavigator} />
         <Stack.Screen name="Matches" component={MatchesScreen} />
         <Stack.Screen name="MatchInfo" component={MatchInfoScreen} />
+        <Stack.Screen name="TeamChat" component={TeamChatScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
