@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,81 +6,215 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import MatchCellCard from '../../../components/MatchCellCard';
 import PostScreen from '../post/PostScreen';
+import HomeManager, { Sport, DBMatch, College } from '../../../services/HomeManager';
+import { supabase } from '../../../lib/supabase';
 
-const sports = [
-  { id: 'football', emoji: '⚽' },
-  { id: 'basketball', emoji: '🏀' },
-  { id: 'cricket', emoji: '🏏' },
-  { id: 'tabletennis', emoji: '🏓' },
-  { id: 'badminton', emoji: '🏸' },
-  { id: 'tennis', emoji: '🎾' },
-];
+// Helper to format date "yyyy-mm-dd" to "dd/mm/yy" or similar
+const formatDate = (dateString: Date): string => {
+  const date = new Date(dateString);
+  const d = date.getDate().toString().padStart(2, '0');
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const y = date.getFullYear().toString().slice(-2);
+  return `${d}/${m}/${y}`;
+};
 
-const mockMatches = [
-  {
-    id: '1',
-    venue: 'Kalidas Turf',
-    date: '08/04/26',
-    startTime: '7:00 PM',
-    endTime: '8:00 PM',
-    slotsLeft: 10,
-    totalSlots: 10,
-    goingCount: 0,
-  },
-  {
-    id: '2',
-    venue: 'El Classico Turf, Chennai',
-    date: '08/04/26',
-    startTime: '6:00 PM',
-    endTime: '7:00 PM',
-    slotsLeft: 5,
-    totalSlots: 7,
-    goingCount: 2,
-  },
-  {
-    id: '3',
-    venue: 'SRM Ground, Kattankulathur',
-    date: '09/04/26',
-    startTime: '8:00 AM',
-    endTime: '9:00 AM',
-    slotsLeft: 2,
-    totalSlots: 12,
-    goingCount: 10,
-  },
-  {
-    id: '4',
-    venue: 'Champions Arena',
-    date: '09/04/26',
-    startTime: '5:00 PM',
-    endTime: '6:00 PM',
-    slotsLeft: 6,
-    totalSlots: 10,
-    goingCount: 4,
-  },
-  {
-    id: '5',
-    venue: 'Victory Sports Complex',
-    date: '10/04/26',
-    startTime: '10:00 AM',
-    endTime: '11:00 AM',
-    slotsLeft: 1,
-    totalSlots: 8,
-    goingCount: 7,
-  },
-];
+const formatTime = (timeString: Date): string => {
+  const date = new Date(timeString);
+  const hours = date.getUTCHours();
+  const minutes = date.getUTCMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+};
+
+const formatEndTime = (timeString: Date): string => {
+  // Assuming matches are 1 hour long for now if not specified.
+  const date = new Date(timeString);
+  const hours = date.getUTCHours() + 1; // add 1 hour
+  const minutes = date.getUTCMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+};
 
 export default function HomeScreen({ navigation }: any) {
   const colors = useColors();
-  const [selectedSport, setSelectedSport] = useState('football');
+  
+  // State
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [userCollege, setUserCollege] = useState<College | null>(null);
+  const [sports, setSports] = useState<Sport[]>([]);
+  const [preferredSports, setPreferredSports] = useState<Sport[]>([]);
+  const [preferredSportsMatches, setPreferredSportsMatches] = useState<Record<string, DBMatch[]>>({});
+  const [selectedSportId, setSelectedSportId] = useState<number>(0);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [showPost, setShowPost] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const [reminderMessage, setReminderMessage] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLoading(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      setCurrentUserId(userId);
+      
+      const userProfile = await HomeManager.fetchUserProfile(userId);
+      if (!userProfile) {
+        setLoading(false);
+        return;
+      }
+      
+      const college = await HomeManager.fetchCollege(userProfile.college_id);
+      if (college) setUserCollege(college);
+      
+      const allSports = await HomeManager.fetchAllSports();
+      const preferredSportsData = await HomeManager.fetchUserPreferredSports(userId);
+      
+      const userPreferredSports: Sport[] = [];
+      const preferredSportIds = new Set<number>();
+      for (const pref of preferredSportsData) {
+        const sport = allSports.find(s => s.id === pref.sport_id);
+        if (sport) {
+          userPreferredSports.push(sport);
+          preferredSportIds.add(sport.id);
+        }
+      }
+      setPreferredSports(userPreferredSports);
+      
+      const sortedSports = [...allSports].sort((sport1, sport2) => {
+        const isSport1Pref = preferredSportIds.has(sport1.id);
+        const isSport2Pref = preferredSportIds.has(sport2.id);
+        
+        if (isSport1Pref && !isSport2Pref) return -1;
+        if (!isSport1Pref && isSport2Pref) return 1;
+        return sport1.id - sport2.id;
+      });
+      
+      setSports(sortedSports);
+      
+      const initialSport = userPreferredSports.length > 0 ? userPreferredSports[0] : sortedSports[0];
+      if (initialSport) {
+        setSelectedSportId(initialSport.id);
+        const dbMatches = await HomeManager.fetchMatchesForSport(
+          initialSport.id,
+          userProfile.college_id,
+          userId
+        );
+        setPreferredSportsMatches(prev => ({ ...prev, [initialSport.name]: dbMatches }));
+      }
+      
+      await checkForUpcomingMatches(userId);
+      setLoading(false);
+      
+    } catch (error) {
+      console.error('Error fetching home data:', error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!loading && currentUserId) {
+        checkForUpcomingMatches(currentUserId);
+      }
+    }, [loading, currentUserId])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, []);
+
+  const checkForUpcomingMatches = async (userId: string) => {
+    try {
+      const upcomingMatches = await HomeManager.fetchUserUpcomingMatches(userId);
+      if (upcomingMatches.length > 0) {
+        const closestMatch = upcomingMatches[0];
+        showReminderForMatch(closestMatch);
+      } else {
+        setReminderMessage(null);
+      }
+    } catch (err) {
+      console.error('Error checking upcoming matches', err);
+    }
+  };
+
+  const showReminderForMatch = (match: DBMatch) => {
+    const now = new Date();
+    
+    // Parse match date and time exactly like swift logic
+    const matchDateStr = match.matchDate.toISOString().split('T')[0];
+    const matchTimeStr = match.matchTime.toISOString().split('T')[1];
+    const matchDateTime = new Date(`${matchDateStr}T${matchTimeStr}`);
+    
+    const timeDiffMs = matchDateTime.getTime() - now.getTime();
+    const hoursUntilMatch = Math.floor(timeDiffMs / (1000 * 60 * 60));
+    const minutesUntilMatch = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    const timeFormatted = formatTime(match.matchTime);
+    let message = '';
+    
+    if (hoursUntilMatch === 0) {
+      if (minutesUntilMatch <= 5) {
+        message = `Reminder - Starting now! Your ${match.sportName} match at ${timeFormatted} is about to begin!`;
+      } else {
+        message = `Reminder - Game on! Your ${match.sportName} match starts at ${timeFormatted}, only ${minutesUntilMatch} minutes to go.`;
+      }
+    } else if (hoursUntilMatch === 1) {
+      message = `Reminder - Game on! Your ${match.sportName} match starts at ${timeFormatted}, only 1 hour and ${minutesUntilMatch} minutes to go.`;
+    } else {
+      message = `Reminder - Game on! Your ${match.sportName} match starts at ${timeFormatted}, only ${hoursUntilMatch} hours and ${minutesUntilMatch} minutes to go.`;
+    }
+
+    setReminderMessage(message);
+  };
+
+  const onSportSelect = async (sport: Sport) => {
+    setSelectedSportId(sport.id);
+    
+    if (preferredSportsMatches[sport.name]) {
+      // Refresh RSVP counts
+      const matches = [...preferredSportsMatches[sport.name]];
+      for (let i = 0; i < matches.length; i++) {
+        const count = await HomeManager.fetchRSVPCount(matches[i].id);
+        matches[i] = { ...matches[i], playersRSVPed: count };
+      }
+      setPreferredSportsMatches(prev => ({ ...prev, [sport.name]: matches }));
+    } else {
+      if (userCollege && currentUserId) {
+        setLoading(true); // maybe optional, to not block ui entirely, but helps.
+        const matches = await HomeManager.fetchMatchesForSport(sport.id, userCollege.id, currentUserId);
+        setPreferredSportsMatches(prev => ({ ...prev, [sport.name]: matches }));
+        setLoading(false);
+      }
+    }
+  };
+
+  const selectedSportData = sports.find((s) => s.id === selectedSportId);
+  const currentSportMatches = selectedSportData ? (preferredSportsMatches[selectedSportData.name] || []) : [];
 
   const styles = StyleSheet.create({
     container: {
@@ -137,9 +271,50 @@ export default function HomeScreen({ navigation }: any) {
       fontFamily: FontFamily.regular,
       color: colors.textPrimary,
     },
+    reminderBanner: {
+      marginHorizontal: 20,
+      marginBottom: 20,
+      borderRadius: 28,
+      borderWidth: 1.5,
+      borderColor: 'rgba(255, 59, 48, 0.6)', 
+      backgroundColor: 'rgba(255, 240, 243, 1)', 
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    reminderBannerDark: {
+      borderColor: 'rgba(255, 59, 48, 1)',
+      backgroundColor: 'rgba(100, 15, 25, 1)',
+    },
+    reminderText: {
+      flex: 1,
+      fontSize: FontSize.md,
+      fontFamily: FontFamily.regular,
+      color: 'rgba(140, 20, 30, 1)',
+      marginRight: 10,
+    },
+    reminderTextDark: {
+      color: 'rgba(255, 255, 255, 0.95)',
+    },
+    closeButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      borderWidth: 1,
+      borderColor: 'rgba(140, 20, 30, 0.3)',
+      backgroundColor: 'white',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    closeButtonDark: {
+      borderColor: 'rgba(255, 255, 255, 0.4)',
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    },
     sportsScroll: {
       paddingLeft: 20,
-      marginBottom: 60,
+      marginBottom: 30,
     },
     sportButton: {
       width: 64,
@@ -177,9 +352,29 @@ export default function HomeScreen({ navigation }: any) {
       fontFamily: FontFamily.regular,
       color: colors.textSecondary,
     },
+    noMatchesLabel: {
+      fontSize: FontSize.md,
+      fontFamily: FontFamily.medium,
+      color: colors.textTertiary,
+      textAlign: 'center',
+      marginTop: 40,
+    },
+    centered: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    }
   });
 
-  const selectedSportData = sports.find((s) => s.id === selectedSport);
+  const isDarkMode = colors.backgroundPrimary === '#000000'; // Or your theme check
+
+  if (loading && !refreshing && sports.length === 0) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={colors.systemGreen} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -187,7 +382,7 @@ export default function HomeScreen({ navigation }: any) {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>SRM University</Text>
+          <Text style={styles.headerTitle}>{userCollege?.name || 'Loading...'}</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity style={styles.iconButton} onPress={() => setShowPost(true)}>
               <Ionicons name="add" size={22} color={colors.textPrimary} />
@@ -210,69 +405,100 @@ export default function HomeScreen({ navigation }: any) {
           />
         </View>
 
-        {/* Sports Filter */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.sportsScroll}
-        >
-          {sports.map((sport) => (
-            <TouchableOpacity
-              key={sport.id}
-              style={[
-                styles.sportButton,
-                {
-                  backgroundColor:
-                    selectedSport === sport.id
-                      ? `${colors.systemGreen}15`
-                      : colors.backgroundSecondary,
-                  borderColor:
-                    selectedSport === sport.id
-                      ? colors.systemGreen
-                      : 'transparent',
-                },
-              ]}
-              onPress={() => setSelectedSport(sport.id)}
+        {/* Reminder Banner */}
+        {reminderMessage && (
+          <View style={[styles.reminderBanner, isDarkMode && styles.reminderBannerDark]}>
+            <Text style={[styles.reminderText, isDarkMode && styles.reminderTextDark]}>
+              {reminderMessage}
+            </Text>
+            <TouchableOpacity 
+              style={[styles.closeButton, isDarkMode && styles.closeButtonDark]} 
+              onPress={() => setReminderMessage(null)}
             >
-              <Text style={styles.sportEmoji}>{sport.emoji}</Text>
+              <Ionicons 
+                name="close" 
+                size={14} 
+                color={isDarkMode ? 'white' : 'rgba(140, 20, 30, 1)'} 
+              />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </View>
+        )}
+
+        {/* Sports Filter */}
+        <View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.sportsScroll}
+          >
+            {sports.map((sport) => {
+              const isSelected = selectedSportId === sport.id;
+              return (
+                <TouchableOpacity
+                  key={sport.id}
+                  style={[
+                    styles.sportButton,
+                    {
+                      backgroundColor: isSelected
+                          ? `${colors.systemGreen}15`
+                          : colors.backgroundSecondary,
+                      borderColor: isSelected
+                          ? colors.systemGreen
+                          : 'transparent',
+                    },
+                  ]}
+                  onPress={() => onSportSelect(sport)}
+                >
+                  <Text style={styles.sportEmoji}>{sport.emoji}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
         {/* Match Cards */}
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.systemGreen} />
+          }
         >
-          <View style={styles.sectionRow}>
-            <View style={styles.sectionTitle}>
-              <Text style={styles.sectionEmoji}>
-                {selectedSportData?.emoji}
-              </Text>
-              <Text style={styles.sectionText}>
-                {selectedSport.charAt(0).toUpperCase() + selectedSport.slice(1)}
-              </Text>
+          {selectedSportData && (
+            <View style={styles.sectionRow}>
+              <View style={styles.sectionTitle}>
+                <Text style={styles.sectionEmoji}>
+                  {selectedSportData.emoji}
+                </Text>
+                <Text style={styles.sectionText}>
+                  {selectedSportData.name.charAt(0).toUpperCase() + selectedSportData.name.slice(1)}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Matches', { sport: selectedSportData.name })}
+              >
+                <Text style={styles.seeMore}>See more</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Matches', { sport: selectedSport })}
-            >
-              <Text style={styles.seeMore}>See more</Text>
-            </TouchableOpacity>
-          </View>
+          )}
 
-          {mockMatches.map((match) => (
-            <MatchCellCard
-              key={match.id}
-              venue={match.venue}
-              date={match.date}
-              startTime={match.startTime}
-              endTime={match.endTime}
-              slotsLeft={match.slotsLeft}
-              totalSlots={match.totalSlots}
-              goingCount={match.goingCount}
-              onPress={() => navigation.navigate('MatchInfo', { match })}
-            />
-          ))}
+          {currentSportMatches.length === 0 ? (
+            <Text style={styles.noMatchesLabel}>No matches available for today or tomorrow</Text>
+          ) : (
+            currentSportMatches.map((match) => (
+              <MatchCellCard
+                key={match.id}
+                venue={match.venue}
+                date={formatDate(match.matchDate)}
+                startTime={formatTime(match.matchTime)}
+                endTime={formatEndTime(match.matchTime)}
+                slotsLeft={match.playersNeeded - match.playersRSVPed}
+                totalSlots={match.playersNeeded}
+                goingCount={match.playersRSVPed}
+                onPress={() => navigation.navigate('MatchInfo', { match })}
+              />
+            ))
+          )}
         </ScrollView>
 
         <PostScreen visible={showPost} onClose={() => setShowPost(false)} />

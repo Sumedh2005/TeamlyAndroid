@@ -1,28 +1,215 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
+import MatchInfoManager, { Profile, PlayerWithProfile } from '../../../services/MatchInfoManager';
+import { DBMatch } from '../../../services/HomeManager';
+import { supabase } from '../../../lib/supabase';
+import ReportModal from '../report/ReportModal';
 
 const SKILL_COLORS: Record<string, string> = {
-  Beginner: '#00BCD4',
-  Intermediate: '#FFD60A',
-  Experienced: '#FF9500',
-  Advanced: '#FF3B30',
+  beginner: 'rgba(90, 200, 250, 0.7)',
+  intermediate: 'rgba(255, 204, 0, 0.7)',
+  experienced: 'rgba(255, 149, 0, 0.7)',
+  advanced: 'rgba(255, 59, 48, 0.7)',
 };
 
 export default function MatchInfoScreen({ navigation, route }: any) {
   const colors = useColors();
-  const { match } = route.params;
+  const { match: initialMatch }: { match: DBMatch } = route.params;
 
-  const filledRatio = match.goingCount / match.totalSlots;
+  const [match, setMatch] = useState<DBMatch>(initialMatch);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
+  
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [hostProfile, setHostProfile] = useState<Profile | null>(null);
+  const [rsvpPlayers, setRsvpPlayers] = useState<PlayerWithProfile[]>([]);
+  const [isHostFriend, setIsHostFriend] = useState<boolean>(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    setLoading(true);
+    try {
+      const uid = await MatchInfoManager.fetchCurrentUserId();
+      setCurrentUserId(uid);
+      await loadMatchData(uid);
+    } catch (error) {
+      console.error('Error fetching initial match info', error);
+      Alert.alert('Error', 'Failed to load match information');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMatchData = async (uid: string) => {
+    try {
+      // Fetch host profile
+      const hProfile = await MatchInfoManager.fetchHostProfile(match);
+      setHostProfile(hProfile);
+
+      // Fetch RSVPs
+      const players = await MatchInfoManager.fetchRSVPPlayers(match, uid);
+      
+      // Sort players: Current user first, then alphabetically
+      players.sort((a, b) => {
+        if (a.userId === uid) return -1;
+        if (b.userId === uid) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      setRsvpPlayers(players);
+
+      // Check host friendship
+      const isFriend = await MatchInfoManager.checkFriendshipWithHost(match, uid);
+      setIsHostFriend(isFriend);
+
+      // Also refresh the RSVP count just in case it differs
+      const updatedCount = await MatchInfoManager.fetchPlayersRSVPCount(match.id);
+      setMatch(prev => ({ ...prev, playersRSVPed: updatedCount }));
+
+    } catch (error) {
+      console.error('Error loading full match data', error);
+      Alert.alert('Error', 'Failed to load match details');
+    }
+  };
+
+  const isHost = match.postedByUserId === currentUserId;
+  const hasRSVPed = rsvpPlayers.some(p => p.userId === currentUserId);
+  
+  // Calculate if match is upcoming
+  const isMatchUpcoming = () => {
+    const matchDateStr = match.matchDate.toISOString().split('T')[0];
+    const matchTimeStr = match.matchTime.toISOString().split('T')[1];
+    const matchDateTime = new Date(`${matchDateStr}T${matchTimeStr}`);
+    return matchDateTime > new Date();
+  };
+
+  const handleJoinOrLeave = async () => {
+    if (isHost || !isMatchUpcoming() || actionLoading) return;
+
+    setActionLoading(true);
+    try {
+      if (hasRSVPed) {
+        await MatchInfoManager.leaveMatch(match.id, currentUserId);
+        Alert.alert('Success', 'Successfully left the match!');
+      } else {
+        await MatchInfoManager.joinMatch(match.id, currentUserId);
+        Alert.alert('Success', 'Successfully joined the match!');
+      }
+      // Refresh Data
+      await loadMatchData(currentUserId);
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Error', `Failed to ${hasRSVPed ? 'leave' : 'join'} match: ${error.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const confirmDeleteMatch = () => {
+    Alert.alert(
+      'Delete Match',
+      'Are you sure you want to delete this match? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: deleteMatch }
+      ]
+    );
+  };
+
+  const deleteMatch = async () => {
+    setActionLoading(true);
+    try {
+      // Delete RSVPs explicitly just to be safe (supabase cascade might do it but following swift logic)
+      await supabase.from('match_rsvps').delete().eq('match_id', match.id);
+      // Delete Match
+      await supabase.from('matches').delete().eq('id', match.id);
+      
+      navigation.goBack();
+    } catch (error) {
+      console.error('Delete error', error);
+      Alert.alert('Error', 'Failed to delete match. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const showReportModal = () => {
+    setReportModalVisible(true);
+  };
+
+  const handleMenuPress = () => {
+    if (isHost) {
+      Alert.alert(
+        'Match Options',
+        'Choose an action for your match',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete Match', style: 'destructive', onPress: confirmDeleteMatch }
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Match Options',
+        'Choose an action',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Report Match', style: 'destructive', onPress: showReportModal }
+        ]
+      );
+    }
+  };
+
+  const navigateToProfile = (userId: string) => {
+    if (!userId || userId === currentUserId) return;
+    navigation.navigate('UserProfileScreen', { userId });
+  };
+
+  // Helper date/time formatters
+  const formatDate = (dateString: Date): string => {
+    const date = new Date(dateString);
+    if (new Date().toDateString() === date.toDateString()) return 'Today';
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (tomorrow.toDateString() === date.toDateString()) return 'Tomorrow';
+
+    const d = date.getDate().toString().padStart(2, '0');
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const y = date.getFullYear().toString().slice(-2);
+    return `${d}/${m}/${y}`;
+  };
+
+  const formatTimeRange = (timeString: Date): string => {
+    const startObj = new Date(timeString);
+    const endObj = new Date(startObj.getTime() + 60 * 60 * 1000);
+
+    const format = (d: Date) => {
+      const h = d.getUTCHours();
+      const m = d.getUTCMinutes();
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+    };
+
+    return `${format(startObj)} - ${format(endObj)}`;
+  };
+
+  const filledRatio = Math.max(0, Math.min(1, match.playersRSVPed / match.playersNeeded));
+  const progressColor = filledRatio <= 0.33 ? colors.systemGreen : (filledRatio <= 0.66 ? '#FFD60A' : '#FF3B30');
 
   const styles = StyleSheet.create({
     container: {
@@ -32,7 +219,6 @@ export default function MatchInfoScreen({ navigation, route }: any) {
     safeArea: {
       flex: 1,
     },
-
     // Header
     header: {
       flexDirection: 'row',
@@ -43,30 +229,35 @@ export default function MatchInfoScreen({ navigation, route }: any) {
       paddingBottom: 8,
     },
     backButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       backgroundColor: colors.backgroundSecondary,
       justifyContent: 'center',
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.backgroundTertiary,
     },
     moreButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       backgroundColor: colors.backgroundSecondary,
       justifyContent: 'center',
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.backgroundTertiary,
     },
     title: {
-      fontSize: 32,
+      fontSize: 35,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
       paddingHorizontal: 20,
-      marginBottom: 8,
+      marginBottom: 15,
+      marginTop: 10,
     },
     venueName: {
-      fontSize: FontSize.lg,
+      fontSize: 24,
       fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
       textAlign: 'center',
@@ -76,226 +267,280 @@ export default function MatchInfoScreen({ navigation, route }: any) {
     // Info Card
     infoCard: {
       backgroundColor: colors.backgroundSecondary,
-      borderRadius: 20,
-      marginHorizontal: 20,
+      borderRadius: 35,
+      marginHorizontal: 16,
       padding: 20,
-      marginBottom: 24,
+      marginBottom: 30,
       gap: 16,
     },
     infoRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
+      gap: 12,
     },
     infoText: {
-      fontSize: FontSize.md,
-      fontFamily: FontFamily.regular,
+      fontSize: 17,
+      fontFamily: FontFamily.medium,
       color: colors.textPrimary,
     },
     skillBadge: {
-      paddingHorizontal: 16,
-      paddingVertical: 6,
-      borderRadius: 50,
+      paddingHorizontal: 15,
+      paddingVertical: 4,
+      borderRadius: 12,
+      minWidth: 120,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     skillText: {
-      fontSize: FontSize.sm,
+      fontSize: 14,
       fontFamily: FontFamily.semiBold,
       color: colors.primaryWhite,
     },
     progressRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
+      gap: 12,
     },
     progressBarBg: {
-      flex: 1,
-      height: 6,
+      width: 200,
+      height: 7,
       backgroundColor: colors.backgroundTertiary,
-      borderRadius: 3,
+      borderRadius: 4,
     },
     progressBarFill: {
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: colors.systemGreen,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: progressColor,
     },
     progressText: {
-      fontSize: FontSize.sm,
+      fontSize: 16,
       fontFamily: FontFamily.medium,
-      color: colors.textSecondary,
-      minWidth: 32,
-      textAlign: 'right',
+      color: colors.textPrimary,
+      marginLeft: 'auto',
     },
 
     // Divider
     divider: {
       height: 0.5,
-      backgroundColor: colors.backgroundTertiary,
+      backgroundColor: colors.textTertiary,
+      opacity: 0.3,
       marginHorizontal: 20,
-      marginBottom: 20,
+      marginBottom: 30,
     },
 
     // Section
     sectionTitle: {
-      fontSize: FontSize.lg,
+      fontSize: 18,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
-      paddingHorizontal: 20,
+      paddingHorizontal: 40,
       marginBottom: 12,
+    },
+    
+    sectionContainer: {
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 35,
+      marginHorizontal: 16,
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      marginBottom: 30,
     },
 
     // Player Row
     playerCard: {
-      backgroundColor: colors.backgroundSecondary,
-      borderRadius: 16,
-      marginHorizontal: 20,
-      marginBottom: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
+      height: 60,
     },
     avatarCircle: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: colors.backgroundTertiary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     playerName: {
       flex: 1,
-      fontSize: FontSize.md,
-      fontFamily: FontFamily.medium,
+      fontSize: 18,
+      fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
+      marginLeft: 12,
     },
     friendTag: {
-      fontSize: FontSize.sm,
+      fontSize: 12,
       fontFamily: FontFamily.semiBold,
       color: colors.systemGreen,
+      backgroundColor: colors.backgroundPrimary,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 12,
     },
 
     // Join Button
     joinButtonContainer: {
-      paddingHorizontal: 20,
       paddingBottom: 40,
-      paddingTop: 16,
+      paddingTop: 10,
+      alignItems: 'center'
     },
     joinButton: {
-      height: 56,
-      borderRadius: 50,
-      backgroundColor: colors.systemGreen,
+      width: 110,
+      height: 40,
+      borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
     },
     joinButtonText: {
-      fontSize: FontSize.md,
+      fontSize: 17,
       fontFamily: FontFamily.semiBold,
-      color: colors.primaryWhite,
+      color: 'white',
     },
+    emptyStateText: {
+      textAlign: 'center',
+      color: colors.textTertiary,
+      fontFamily: FontFamily.medium,
+      fontSize: 16,
+      paddingVertical: 10,
+    }
   });
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView showsVerticalScrollIndicator={false}>
+      
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.moreButton} onPress={handleMenuPress}>
+            <Ionicons name="ellipsis-horizontal" size={20} color={colors.systemGreen} />
+          </TouchableOpacity>
+        </View>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.moreButton}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={colors.textPrimary} />
-            </TouchableOpacity>
+        {loading ? (
+          <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+            <ActivityIndicator size="large" color={colors.textPrimary} />
           </View>
-
-          {/* Title */}
-          <Text style={styles.title}>Match Info</Text>
-          <Text style={styles.venueName}>{match.venue}</Text>
-
-          {/* Info Card */}
-          <View style={styles.infoCard}>
-
-            {/* Sport */}
-            <View style={styles.infoRow}>
-              <Ionicons name="football-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.infoText}>{match.sport ?? 'Football'}</Text>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Title */}
+            <Text style={styles.title}>Match Info</Text>
+            
+            {/* Venue */}
+            <View style={{height: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 15}}>
+              <Text style={styles.venueName}>{match.venue}</Text>
             </View>
 
-            {/* Date */}
-            <View style={styles.infoRow}>
-              <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.infoText}>{match.date}</Text>
-            </View>
+            {/* Match Details Card */}
+            <View style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <Ionicons name="football" size={18} color={colors.textTertiary} />
+                <Text style={styles.infoText}>{match.sportName}</Text>
+              </View>
 
-            {/* Time */}
-            <View style={styles.infoRow}>
-              <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.infoText}>{match.startTime} - {match.endTime}</Text>
-            </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="calendar" size={18} color={colors.textTertiary} />
+                <Text style={styles.infoText}>{formatDate(match.matchDate)}</Text>
+              </View>
 
-            {/* Skill */}
-            <View style={styles.infoRow}>
-              <Ionicons name="radio-button-on-outline" size={20} color={colors.textSecondary} />
-              <View style={[
-                styles.skillBadge,
-                { backgroundColor: SKILL_COLORS[match.skill ?? 'Beginner'] }
-              ]}>
-                <Text style={styles.skillText}>{match.skill ?? 'Beginner'}</Text>
+              <View style={styles.infoRow}>
+                <Ionicons name="time" size={18} color={colors.textTertiary} />
+                <Text style={styles.infoText}>{formatTimeRange(match.matchTime)}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <Ionicons name="speedometer" size={18} color={colors.textTertiary} />
+                <View style={[
+                  styles.skillBadge,
+                  { backgroundColor: SKILL_COLORS[match.skillLevel?.toLowerCase() || 'beginner'] || 'gray' }
+                ]}>
+                  <Text style={styles.skillText}>
+                    {match.skillLevel ? match.skillLevel.charAt(0).toUpperCase() + match.skillLevel.slice(1) : 'Not specified'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.progressRow}>
+                <Ionicons name="people" size={23} color={colors.textTertiary} style={{marginLeft: -2.5}} />
+                <View style={styles.progressBarBg}>
+                  <View style={styles.progressBarFill} />
+                </View>
+                <Text style={styles.progressText}>{match.playersRSVPed}/{match.playersNeeded}</Text>
               </View>
             </View>
 
-            {/* Players Progress */}
-            <View style={styles.progressRow}>
-              <Ionicons name="people-outline" size={20} color={colors.textSecondary} />
-              <View style={styles.progressBarBg}>
-                <View style={[styles.progressBarFill, { width: `${filledRatio * 100}%` }]} />
+            <View style={styles.divider} />
+
+            {/* Hosted By */}
+            <Text style={styles.sectionTitle}>Hosted by</Text>
+            <View style={styles.sectionContainer}>
+              <View style={[styles.playerCard, {height: 50}]}>
+                <View style={styles.avatarCircle}>
+                  <Ionicons name="person" size={25} color={colors.textTertiary} />
+                </View>
+                <TouchableOpacity style={{flex: 1}} onPress={() => !isHost && navigateToProfile(match.postedByUserId)}>
+                  <Text style={styles.playerName}>{isHost ? 'You' : (hostProfile?.name || match.postedByName)}</Text>
+                </TouchableOpacity>
+                {!isHost && isHostFriend && (
+                  <Text style={styles.friendTag}>Friend</Text>
+                )}
               </View>
-              <Text style={styles.progressText}>{match.goingCount}/{match.totalSlots}</Text>
             </View>
-          </View>
 
-          <View style={styles.divider} />
+            <View style={styles.divider} />
 
-          {/* Hosted By */}
-          <Text style={styles.sectionTitle}>Hosted by</Text>
-          <View style={styles.playerCard}>
-            <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={22} color={colors.textTertiary} />
+            {/* Players */}
+            <Text style={styles.sectionTitle}>Players</Text>
+            <View style={[styles.sectionContainer, {minHeight: 100}]}>
+              {rsvpPlayers.length === 0 ? (
+                <Text style={styles.emptyStateText}>No players have joined yet</Text>
+              ) : (
+                rsvpPlayers.map((player, index) => (
+                  <View key={player.userId} style={[styles.playerCard, index !== rsvpPlayers.length - 1 && {marginBottom: 12}]}>
+                    <View style={styles.avatarCircle}>
+                      <Ionicons name="person" size={25} color={colors.textTertiary} />
+                    </View>
+                    <TouchableOpacity style={{flex: 1}} onPress={() => navigateToProfile(player.userId)}>
+                      <Text style={styles.playerName}>{player.userId === currentUserId ? 'You' : player.name}</Text>
+                    </TouchableOpacity>
+                    {player.userId !== currentUserId && player.isFriend && (
+                      <Text style={styles.friendTag}>Friend</Text>
+                    )}
+                  </View>
+                ))
+              )}
             </View>
-            <Text style={styles.playerName}>{match.hostedBy ?? 'Aditi Onkar'}</Text>
-            <Text style={styles.friendTag}>Friend</Text>
-          </View>
 
-          <View style={[styles.divider, { marginTop: 12 }]} />
-
-          {/* Players */}
-          <Text style={[styles.sectionTitle, { marginTop: 8 }]}>Players</Text>
-          <View style={styles.playerCard}>
-            <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={22} color={colors.textTertiary} />
-            </View>
-            <Text style={styles.playerName}>You</Text>
-          </View>
-          {(match.players ?? ['Shashidhar']).map((player: string, index: number) => (
-            <View key={index} style={styles.playerCard}>
-              <View style={styles.avatarCircle}>
-                <Ionicons name="person" size={22} color={colors.textTertiary} />
+            {/* Join / Leave Button */}
+            {!isHost && isMatchUpcoming() && (
+              <View style={styles.joinButtonContainer}>
+                <TouchableOpacity 
+                  style={[
+                    styles.joinButton, 
+                    { backgroundColor: hasRSVPed ? '#FF3B30' : '#34C759' },
+                    actionLoading && { opacity: 0.7 }
+                  ]}
+                  onPress={handleJoinOrLeave}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.joinButtonText}>{hasRSVPed ? 'Leave' : 'Join'}</Text>
+                  )}
+                </TouchableOpacity>
               </View>
-              <Text style={styles.playerName}>{player}</Text>
-              <Text style={styles.friendTag}>Friend</Text>
-            </View>
-          ))}
+            )}
 
-          {/* Join Button */}
-          <View style={styles.joinButtonContainer}>
-            <TouchableOpacity style={styles.joinButton}>
-              <Text style={styles.joinButtonText}>Join Match</Text>
-            </TouchableOpacity>
-          </View>
+          </ScrollView>
+        )}
 
-        </ScrollView>
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          reportType={{ type: 'match', id: match.id }}
+          currentUserId={currentUserId}
+        />
       </SafeAreaView>
     </View>
   );

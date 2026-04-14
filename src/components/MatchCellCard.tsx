@@ -22,9 +22,9 @@ interface MatchCellCardProps {
 
 const getSlotColor = (slotsLeft: number, totalSlots: number): string => {
   const ratio = slotsLeft / totalSlots;
-  if (ratio > 0.7) return '#34C759';
-  if (ratio > 0.5) return '#FFD60A';
-  return '#FF3B30';
+  if (ratio >= 0.75) return '#34C759'; // First 25% filled (75%-100% left) => Green
+  if (ratio <= 0.25) return '#FF3B30'; // Last 25% left => Red
+  return '#FFD60A'; // Middle (25% to 75% left) => Yellow
 };
 
 const getTimeIcon = (startTime: string): 'sunny' | 'moon' => {

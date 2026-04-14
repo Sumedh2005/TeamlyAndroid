@@ -5,6 +5,7 @@ import OnboardingNavigator from './OnboardingNavigator';
 import MainTabNavigator from './MainTabNavigator';
 import MatchesScreen from '../screens/main/home/MatchesScreen';
 import MatchInfoScreen from '../screens/main/home/MatchInfoScreen';
+import UserProfileScreen from '../screens/main/profile/UserProfileScreen';
 
 // inside Stack.Navigator add:
 
@@ -20,6 +21,7 @@ export default function AppNavigator() {
         <Stack.Screen name="MainApp" component={MainTabNavigator} />
         <Stack.Screen name="Matches" component={MatchesScreen} />
         <Stack.Screen name="MatchInfo" component={MatchInfoScreen} />
+        <Stack.Screen name="UserProfileScreen" component={UserProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
