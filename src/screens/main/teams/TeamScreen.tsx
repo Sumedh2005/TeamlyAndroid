@@ -1,4 +1,3 @@
-// src/screens/main/teams/TeamScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -9,6 +8,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons'; // Add this import
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize, LineHeight } from '../../../theme/fonts';
 import CreateTeamSheet, { CreatedTeam } from './CreateTeamSheet';
@@ -19,7 +19,7 @@ const TEAMS = [
   { id: '3', name: 'Bask FC', sport: 'basketball', emoji: '🏀' },
 ];
 
-export default function TeamScreen() {
+export default function TeamScreen({ navigation }: any) {
   const colors = useColors();
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
@@ -28,13 +28,26 @@ export default function TeamScreen() {
     t.name.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const handleTeamPress = (team: typeof TEAMS[0]) => {
+    // Navigate to TeamChat screen with team data
+    navigation.navigate('TeamChat', { 
+      teamId: team.id,
+      team: {
+        id: team.id,
+        name: team.name,
+        sport: team.sport,
+        emoji: team.emoji,
+        isCaptain: team.id === '1', // Example: Make first team captain for testing
+        members: []
+      }
+    });
+  };
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.backgroundPrimary }]}>
       <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-        {/* Header */}
         <Text style={[styles.title, { color: colors.textPrimary }]}>Teams</Text>
 
-        {/* Search */}
         <View style={[styles.searchBar, { backgroundColor: colors.backgroundSecondary }]}>
           <Text style={[styles.searchIcon, { color: colors.textTertiary }]}>🔍</Text>
           <TextInput
@@ -46,24 +59,23 @@ export default function TeamScreen() {
           />
         </View>
 
-        {/* Team List */}
         <FlatList
           data={filtered}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.teamItem, { backgroundColor: colors.backgroundSecondary }]}
               activeOpacity={0.7}
+              onPress={() => handleTeamPress(item)}
             >
               <Text style={styles.teamEmoji}>{item.emoji}</Text>
               <Text style={[styles.teamName, { color: colors.textPrimary }]}>{item.name}</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
             </TouchableOpacity>
           )}
         />
 
-        {/* Create Button */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.createButton, { backgroundColor: colors.systemGreen }]}
@@ -75,12 +87,12 @@ export default function TeamScreen() {
         </View>
       </View>
 
-      {/* Create Team Modal Sheet */}
       <CreateTeamSheet
         visible={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={(_team: CreatedTeam) => {
           setShowCreate(false);
+          // Optionally add the new team to your list here
         }}
       />
     </SafeAreaView>
@@ -88,13 +100,8 @@ export default function TeamScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
+  safe: { flex: 1 },
+  container: { flex: 1, paddingHorizontal: 20 },
   title: {
     fontSize: FontSize.xxxl,
     fontFamily: FontFamily.bold,
@@ -110,22 +117,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 20,
   },
-  searchIcon: {
-    fontSize: FontSize.md,
-    marginRight: 8,
-  },
+  searchIcon: { fontSize: FontSize.md, marginRight: 8 },
   searchInput: {
     flex: 1,
     fontSize: FontSize.md,
     fontFamily: FontFamily.regular,
     padding: 0,
   },
-  listContent: {
-    gap: 12,
-  },
-  separator: {
-    height: 0,
-  },
+  listContent: { gap: 12 },
   teamItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -133,11 +132,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 18,
   },
-  teamEmoji: {
-    fontSize: 26,
-    marginRight: 14,
-  },
+  teamEmoji: { fontSize: 26, marginRight: 14 },
   teamName: {
+    flex: 1,
     fontSize: FontSize.lg,
     fontFamily: FontFamily.medium,
     lineHeight: LineHeight.lg,
