@@ -1,108 +1,136 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TextInput,
+  ActivityIndicator,
   TouchableOpacity,
+  RefreshControl,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import MatchCellCard from '../../../components/MatchCellCard';
-
-const upcomingMatches = [
-  {
-    id: '1',
-    venue: 'Turf',
-    date: '09/04/26',
-    startTime: '7:30 PM',
-    endTime: '8:30 PM',
-    slotsLeft: 4,
-    totalSlots: 5,
-    goingCount: 1,
-  },
-  {
-    id: '2',
-    venue: 'Moonrise Turf',
-    date: '08/04/26',
-    startTime: '7:00 PM',
-    endTime: '8:00 PM',
-    slotsLeft: 10,
-    totalSlots: 10,
-    goingCount: 0,
-  },
-  {
-    id: '3',
-    venue: 'El Classico Turf, Potheri',
-    date: '08/04/26',
-    startTime: '6:00 PM',
-    endTime: '7:00 PM',
-    slotsLeft: 5,
-    totalSlots: 7,
-    goingCount: 2,
-  },
-  {
-    id: '4',
-    venue: 'SRM Ground, Kattankulathur',
-    date: '09/04/26',
-    startTime: '8:00 AM',
-    endTime: '9:00 AM',
-    slotsLeft: 2,
-    totalSlots: 12,
-    goingCount: 10,
-  },
-  {
-    id: '5',
-    venue: 'Champions Arena',
-    date: '10/04/26',
-    startTime: '5:00 PM',
-    endTime: '6:00 PM',
-    slotsLeft: 6,
-    totalSlots: 10,
-    goingCount: 4,
-  },
-];
-
-const pastMatches = [
-  {
-    id: 'p1',
-    venue: 'Victory Sports Complex',
-    date: '01/04/26',
-    startTime: '10:00 AM',
-    endTime: '11:00 AM',
-    slotsLeft: 0,
-    totalSlots: 8,
-    goingCount: 8,
-  },
-  {
-    id: 'p2',
-    venue: 'Moonrise Turf',
-    date: '03/04/26',
-    startTime: '6:00 PM',
-    endTime: '7:00 PM',
-    slotsLeft: 0,
-    totalSlots: 10,
-    goingCount: 10,
-  },
-  {
-    id: 'p3',
-    venue: 'El Classico Turf, Potheri',
-    date: '05/04/26',
-    startTime: '7:00 PM',
-    endTime: '8:00 PM',
-    slotsLeft: 0,
-    totalSlots: 7,
-    goingCount: 7,
-  },
-];
+import JoinedMatchesManager from '../../../services/JoinedMatchesManager';
+import { DBMatch } from '../../../services/HomeManager';
 
 export default function MatchScreen({ navigation }: any) {
   const colors = useColors();
+  
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [upcomingMatches, setUpcomingMatches] = useState<DBMatch[]>([]);
+  const [pastMatches, setPastMatches] = useState<DBMatch[]>([]);
+  
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const matches = activeTab === 'upcoming' ? upcomingMatches : pastMatches;
+  useEffect(() => {
+    fetchUserMatches();
+  }, []);
+
+  const fetchUserMatches = async () => {
+    try {
+      const matches = await JoinedMatchesManager.fetchUserMatches();
+      processMatches(matches);
+      setErrorMsg(null);
+    } catch (error: any) {
+      setErrorMsg('Failed to load matches. Please try again.');
+      console.error(error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchUserMatches();
+  }, []);
+
+  const combineDateAndTime = (date: Date, time: Date): Date => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    
+    const hh = String(time.getUTCHours()).padStart(2, '0');
+    const min = String(time.getUTCMinutes()).padStart(2, '0');
+    const ss = String(time.getUTCSeconds()).padStart(2, '0');
+
+    // Interpret the date string explicitly in local timezone parsing logic similar to swift behavior
+    // Swift uses `time.dateComponents([.hour, .minute])` applied to the Date directly.
+    return new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`);
+  };
+
+  const processMatches = (matches: DBMatch[]) => {
+    const now = new Date();
+    
+    const upcoming: DBMatch[] = [];
+    const past: DBMatch[] = [];
+
+    for (const match of matches) {
+      // In TS, date object creation from UTC string could shift. To strictly compare:
+      const matchDateTime = combineDateAndTime(match.matchDate, match.matchTime);
+      
+      const isSameDay = match.matchDate.toDateString() === now.toDateString();
+      
+      if (isSameDay) {
+        if (matchDateTime > now) {
+          upcoming.push(match);
+        } else {
+          past.push(match);
+        }
+      } else if (matchDateTime > now) {
+        upcoming.push(match);
+      } else {
+        past.push(match);
+      }
+    }
+
+    // Sort upcoming ascending
+    upcoming.sort((a, b) => combineDateAndTime(a.matchDate, a.matchTime).getTime() - combineDateAndTime(b.matchDate, b.matchTime).getTime());
+    
+    // Sort past descending
+    past.sort((a, b) => combineDateAndTime(b.matchDate, b.matchTime).getTime() - combineDateAndTime(a.matchDate, a.matchTime).getTime());
+
+    setUpcomingMatches(upcoming);
+    setPastMatches(past);
+  };
+
+  const navigateToMatchInfo = (match: DBMatch) => {
+    navigation.navigate('MatchInfo', { match });
+  };
+
+  const currentMatches = activeTab === 'upcoming' ? upcomingMatches : pastMatches;
+
+  const formatDate = (dateString: Date): string => {
+    const date = new Date(dateString);
+    if (new Date().toDateString() === date.toDateString()) return 'Today';
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (tomorrow.toDateString() === date.toDateString()) return 'Tomorrow';
+
+    const d = date.getDate().toString().padStart(2, '0');
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const y = date.getFullYear().toString().slice(-2);
+    return `${d}/${m}/${y}`;
+  };
+
+  const formatTime = (timeString: Date): string => {
+    const d = new Date(timeString);
+    const h = d.getUTCHours();
+    const m = d.getUTCMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  const formatEndTime = (timeString: Date): string => {
+    const startObj = new Date(timeString);
+    const endObj = new Date(startObj.getTime() + 60 * 60 * 1000);
+    return formatTime(endObj);
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -143,12 +171,30 @@ export default function MatchScreen({ navigation }: any) {
       fontFamily: FontFamily.medium,
     },
 
-    // Cards
-    scrollContent: {
+    // List
+    listContent: {
       paddingHorizontal: 20,
-      paddingBottom: 100,
+      paddingBottom: 40,
       paddingTop: 8,
+      flexGrow: 1,
     },
+    centerContent: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: 16,
+      fontFamily: FontFamily.medium,
+      color: colors.textTertiary,
+      textAlign: 'center',
+    },
+    errorText: {
+      fontSize: 16,
+      fontFamily: FontFamily.medium,
+      color: colors.systemRed,
+      textAlign: 'center',
+    }
   });
 
   return (
@@ -225,25 +271,48 @@ export default function MatchScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Match Cards */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {matches.map((match) => (
-            <MatchCellCard
-              key={match.id}
-              venue={match.venue}
-              date={match.date}
-              startTime={match.startTime}
-              endTime={match.endTime}
-              slotsLeft={match.slotsLeft}
-              totalSlots={match.totalSlots}
-              goingCount={match.goingCount}
-              onPress={() => navigation.navigate('MatchInfo', { match })}
-            />
-          ))}
-        </ScrollView>
+        {loading ? (
+          <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color={colors.textPrimary} />
+          </View>
+        ) : errorMsg ? (
+          <View style={styles.centerContent}>
+            <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={currentMatches}
+            keyExtractor={item => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={onRefresh} 
+                tintColor={colors.textTertiary}
+              />
+            }
+            ListEmptyComponent={() => (
+              <View style={[styles.centerContent, { marginTop: 150 }]}>
+                <Text style={styles.emptyText}>
+                  {activeTab === 'upcoming' ? 'No upcoming matches' : 'No past matches'}
+                </Text>
+              </View>
+            )}
+            renderItem={({ item }) => (
+              <MatchCellCard
+                venue={item.venue}
+                date={formatDate(item.matchDate)}
+                startTime={formatTime(item.matchTime)}
+                endTime={formatEndTime(item.matchTime)}
+                slotsLeft={item.playersNeeded - item.playersRSVPed}
+                totalSlots={item.playersNeeded}
+                goingCount={item.playersRSVPed}
+                onPress={() => navigateToMatchInfo(item)}
+              />
+            )}
+          />
+        )}
       </SafeAreaView>
     </View>
   );

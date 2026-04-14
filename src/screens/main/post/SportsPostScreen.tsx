@@ -10,11 +10,14 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
+import PostManager from './PostManager';
 
 const SKILL_LEVELS = ['Beginner', 'Intermediate', 'Experienced', 'Advanced'];
 
@@ -34,6 +37,15 @@ const SPORT_LABELS: Record<string, string> = {
   tabletennis: 'Table Tennis',
   badminton: 'Badminton',
   tennis: 'Tennis',
+};
+
+const SPORT_IDS: Record<string, number> = {
+  football: 1,
+  basketball: 2,
+  cricket: 3,
+  tabletennis: 4,
+  badminton: 5,
+  tennis: 6,
 };
 
 interface Props {
@@ -56,6 +68,90 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Helper formats for insertion mirroring PostViewController
+  const getFormattedDate = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const getFormattedTime = (d: Date) => {
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  };
+
+  const handlePost = async () => {
+    // Validations replicating Swift
+    const trimmedVenue = venue.trim();
+    if (!trimmedVenue) {
+      Alert.alert("Missing Information", "Please enter a venue.");
+      return;
+    }
+    
+    if (PostManager.containsBadWord(trimmedVenue)) {
+      Alert.alert("Inappropriate Content", "Venue name contains inappropriate language. Please use appropriate words.");
+      return;
+    }
+
+    if (!date) {
+      Alert.alert("Missing Information", "Please select a date");
+      return;
+    }
+
+    if (!fromTime || !toTime) {
+      Alert.alert("Missing Information", "Please select a start and end time");
+      return;
+    }
+
+    if (fromTime >= toTime) {
+      Alert.alert("Invalid Time", "End time must be after start time");
+      return;
+    }
+
+    if (!skill) {
+      Alert.alert("Missing Information", "Please select a skill level");
+      return;
+    }
+
+    const playersNum = parseInt(players);
+    if (isNaN(playersNum) || playersNum < 2) {
+      Alert.alert("Missing Information", "Minimum 2 players are required for a match");
+      return;
+    }
+
+    if (playersNum > 50) {
+      Alert.alert("Missing Information", "Maximum 50 players are allowed per match");
+      return;
+    }
+    
+    const sportId = SPORT_IDS[sport.toLowerCase()] || 1;
+
+    try {
+      setIsSubmitting(true);
+      await PostManager.saveMatch({
+        matchType: 'sport_community',
+        venue: trimmedVenue,
+        matchDate: getFormattedDate(date),
+        matchTime: getFormattedTime(fromTime),
+        sportId: sportId,
+        skillLevel: skill,
+        playersNeeded: playersNum,
+      });
+      
+      Alert.alert("Success", "Match posted successfully!", [
+        { text: "OK", onPress: () => onClose() }
+      ]);
+    } catch (error: any) {
+      Alert.alert("Error", `Failed to post match: ${error.message || error}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const formatTime = (d: Date) =>
     d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -106,12 +202,11 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
       alignItems: 'center',
       gap: 10,
       marginBottom: 12,
-      opacity: 0.7,
     },
     sportDisplayText: {
       fontSize: FontSize.md,
       fontFamily: FontFamily.regular,
-      color: colors.textPrimary,
+      color: '#000000',
     },
 
     input: {
@@ -324,8 +419,16 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
                 </View>
 
                 {/* Post Button */}
-                <TouchableOpacity style={styles.postButton} onPress={onClose}>
-                  <Text style={styles.postButtonText}>Post</Text>
+                <TouchableOpacity 
+                  style={[styles.postButton, isSubmitting && { opacity: 0.7 }]} 
+                  onPress={handlePost}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                     <ActivityIndicator color="white" />
+                  ) : (
+                     <Text style={styles.postButtonText}>Post</Text>
+                  )}
                 </TouchableOpacity>
 
               </ScrollView>
@@ -350,7 +453,12 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
                   display="default"
                   onChange={(_, selected) => {
                     setShowFromPicker(false);
-                    if (selected) setFromTime(selected);
+                    if (selected) {
+                      setFromTime(selected);
+                      // Auto calculate TO time (+1 hour) magically!
+                      const upcomingEndTime = new Date(selected.getTime() + 60 * 60 * 1000);
+                      setToTime(upcomingEndTime);
+                    }
                   }}
                 />
               )}

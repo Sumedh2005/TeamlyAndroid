@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Modal,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,59 +15,10 @@ import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import MatchCellCard from '../../../components/MatchCellCard';
 import SportsPostScreen from '../post/SportsPostScreen';
-
-const mockMatches = [
-  {
-    id: '1',
-    venue: 'Moonrise Turf',
-    date: '08/04/26',
-    startTime: '7:00 PM',
-    endTime: '8:00 PM',
-    slotsLeft: 10,
-    totalSlots: 10,
-    goingCount: 0,
-  },
-  {
-    id: '2',
-    venue: 'El Classico Turf, Potheri',
-    date: '08/04/26',
-    startTime: '6:00 PM',
-    endTime: '7:00 PM',
-    slotsLeft: 5,
-    totalSlots: 7,
-    goingCount: 2,
-  },
-  {
-    id: '3',
-    venue: 'SRM Ground, Kattankulathur',
-    date: '09/04/26',
-    startTime: '8:00 AM',
-    endTime: '9:00 AM',
-    slotsLeft: 2,
-    totalSlots: 12,
-    goingCount: 10,
-  },
-  {
-    id: '4',
-    venue: 'Champions Arena',
-    date: '09/04/26',
-    startTime: '5:00 PM',
-    endTime: '6:00 PM',
-    slotsLeft: 6,
-    totalSlots: 10,
-    goingCount: 4,
-  },
-  {
-    id: '5',
-    venue: 'Victory Sports Complex',
-    date: '10/04/26',
-    startTime: '10:00 AM',
-    endTime: '11:00 AM',
-    slotsLeft: 1,
-    totalSlots: 8,
-    goingCount: 7,
-  },
-];
+import MatchesManager from '../../../services/MatchesManager';
+import HomeManager, { DBMatch } from '../../../services/HomeManager';
+import { supabase } from '../../../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
 const SPORT_LABELS: Record<string, string> = {
   football: 'Football games',
@@ -79,37 +31,219 @@ const SPORT_LABELS: Record<string, string> = {
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const getDates = () => {
-  const dates = [];
+interface DateItem {
+  day: string;
+  label: string;
+  fullDate: string;
+  dbDate: string;
+  dateObj: Date;
+}
+
+const getDates = (count: number = 30): DateItem[] => {
+  const dates: DateItem[] = [];
   const today = new Date();
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < count; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    dates.push(d);
+    
+    const dayNumber = d.getDate().toString().padStart(2, '0');
+    // For label
+    let label = '';
+    if (i === 0) label = 'Tod';
+    else if (i === 1) label = 'Tom';
+    else label = DAY_LABELS[d.getDay()];
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const dbDate = `${yyyy}-${mm}-${dd}`;
+    
+    // For fullDate (display format e.g. dd/MM/yy)
+    const yy = d.getFullYear().toString().slice(-2);
+    const fullDate = `${dd}/${mm}/${yy}`;
+
+    dates.push({
+      day: parseInt(dayNumber).toString(),
+      label,
+      fullDate,
+      dbDate,
+      dateObj: d,
+    });
   }
   return dates;
+};
+
+// Helper to format date "yyyy-mm-dd" to "dd/mm/yy" or similar
+const formatDate = (dateString: Date): string => {
+  const date = new Date(dateString);
+  const d = date.getDate().toString().padStart(2, '0');
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const y = date.getFullYear().toString().slice(-2);
+  return `${d}/${m}/${y}`;
+};
+
+const formatTime = (timeString: Date): string => {
+  const date = new Date(timeString);
+  const hours = date.getUTCHours();
+  const minutes = date.getUTCMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+};
+
+const formatEndTime = (timeString: Date): string => {
+  const date = new Date(timeString);
+  const hours = date.getUTCHours() + 1; // assuming 1 hr duration
+  const minutes = date.getUTCMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
 };
 
 export default function MatchesScreen({ navigation, route }: any) {
   const colors = useColors();
   const sport = route?.params?.sport ?? 'football';
-  const [selectedDate, setSelectedDate] = useState(0);
-  const [showPost, setShowPost] = useState(false);
+  const capitalizedSport = sport.charAt(0).toUpperCase() + sport.slice(1);
+  const sportLabel = SPORT_LABELS[sport.toLowerCase()] || `${capitalizedSport} games`;
+
+  const [dates] = useState<DateItem[]>(getDates());
+  const [selectedDateIndex, setSelectedDateIndex] = useState(0);
+  
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [userCollegeId, setUserCollegeId] = useState<number>(0);
+  const [filteredMatches, setFilteredMatches] = useState<DBMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Filters
   const [showFilter, setShowFilter] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
-  const [selectedAvailability, setSelectedAvailability] = useState<string[]>([]);
-  const dates = getDates();
+  const [isFillingFastEnabled, setIsFillingFastEnabled] = useState(false);
+  
+  const [showPost, setShowPost] = useState(false);
+
+  useEffect(() => {
+    fetchUserDataAndLoadMatches();
+  }, []);
+
+  useEffect(() => {
+    if (currentUserId && userCollegeId) {
+      loadMatchesForSelectedDate();
+    }
+  }, [selectedDateIndex, selectedSkills, selectedTimes, isFillingFastEnabled]);
 
   const toggleItem = (item: string, list: string[], setList: (v: string[]) => void) => {
     setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
   };
 
-  const clearAll = () => {
+  const toggleFillingFast = () => {
+    setIsFillingFastEnabled(!isFillingFastEnabled);
+  }
+
+  const clearAllFilters = () => {
     setSelectedSkills([]);
     setSelectedTimes([]);
-    setSelectedAvailability([]);
+    setIsFillingFastEnabled(false);
   };
+
+  const fetchUserDataAndLoadMatches = async () => {
+    try {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLoading(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      setCurrentUserId(userId);
+      
+      const userProfile = await HomeManager.fetchUserProfile(userId);
+      if (!userProfile) {
+        setLoading(false);
+        return;
+      }
+      
+      setUserCollegeId(userProfile.college_id);
+      
+      // Will be triggered by the use effect dependency naturally if college id changes, 
+      // but let's call it manually just in case
+      await loadMatchesForSelectedDate(userId, userProfile.college_id);
+      
+    } catch (error) {
+      console.error('Error fetching user data', error);
+      setLoading(false);
+    }
+  };
+
+  const loadMatchesForSelectedDate = async (uid = currentUserId, cid = userCollegeId) => {
+    if (!uid || !cid) return;
+    
+    setLoading(true);
+    const selectedDate = dates[selectedDateIndex];
+
+    try {
+      let dbMatches = await MatchesManager.fetchMatchesForSportAndDate(
+        sport,
+        selectedDate.dbDate,
+        cid,
+        uid
+      );
+
+      // Filter out past matches for today
+      if (selectedDateIndex === 0) {
+        const now = new Date();
+        dbMatches = dbMatches.filter(match => {
+          const matchDateStr = match.matchDate.toISOString().split('T')[0];
+          const matchTimeStr = match.matchTime.toISOString().split('T')[1];
+          const matchDateTime = new Date(`${matchDateStr}T${matchTimeStr}`);
+          return matchDateTime > now;
+        });
+      }
+
+      // Filling Fast filter
+      if (isFillingFastEnabled) {
+        dbMatches = dbMatches.filter(match => {
+          const fillRatio = match.playersRSVPed / Math.max(1, match.playersNeeded);
+          return fillRatio >= 0.66;
+        });
+      }
+
+      // Skill Level filters
+      if (selectedSkills.length > 0) {
+        dbMatches = dbMatches.filter(match => {
+          const skill = match.skillLevel?.toLowerCase();
+          if (!skill) return false;
+          return selectedSkills.includes(skill);
+        });
+      }
+
+      // Time filters
+      if (selectedTimes.length > 0) {
+        dbMatches = dbMatches.filter(match => {
+          const hour = match.matchTime.getUTCHours();
+          const isNightTime = hour >= 17 || hour < 6;
+          
+          if (selectedTimes.includes('day') && selectedTimes.includes('night')) {
+             return true;
+          } else if (selectedTimes.includes('day')) {
+             return !isNightTime;
+          } else if (selectedTimes.includes('night')) {
+             return isNightTime;
+          }
+          return false;
+        });
+      }
+
+      setFilteredMatches(dbMatches);
+    } catch (error) {
+      console.error('Error loading matches for date', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasActiveFilters = selectedSkills.length > 0 || selectedTimes.length > 0 || isFillingFastEnabled;
 
   const styles = StyleSheet.create({
     container: {
@@ -128,24 +262,28 @@ export default function MatchesScreen({ navigation, route }: any) {
       paddingBottom: 12,
     },
     backButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       backgroundColor: colors.backgroundSecondary,
       justifyContent: 'center',
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.backgroundTertiary,
     },
     headerRight: {
       flexDirection: 'row',
-      gap: 8,
+      gap: 10,
     },
     iconButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       backgroundColor: colors.backgroundSecondary,
       justifyContent: 'center',
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.backgroundTertiary,
     },
     title: {
       fontSize: 28,
@@ -159,119 +297,156 @@ export default function MatchesScreen({ navigation, route }: any) {
       marginBottom: 16,
     },
     dateItem: {
-      width: 56,
-      height: 72,
-      borderRadius: 28,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       justifyContent: 'center',
       alignItems: 'center',
-      marginRight: 10,
+      marginRight: 15,
     },
     dateNumber: {
       fontSize: 20,
-      fontFamily: FontFamily.bold,
+      fontFamily: FontFamily.medium,
     },
     dateDay: {
-      fontSize: FontSize.xs,
-      fontFamily: FontFamily.regular,
-      marginTop: 2,
+      fontSize: 11,
+      fontFamily: FontFamily.medium,
+      marginTop: 3,
     },
     scrollContent: {
       paddingHorizontal: 20,
       paddingBottom: 100,
     },
-
-    // Filter Modal
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    noMatchesLabel: {
+      fontSize: 18,
+      fontFamily: FontFamily.medium,
+      color: colors.textTertiary,
+      textAlign: 'center',
+      marginTop: 40,
+    },
+    // Filter Modal Styles
     filterOverlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      backgroundColor: 'rgba(0,0,0,0.5)',
     },
     filterSheet: {
-      backgroundColor: colors.backgroundPrimary,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      paddingHorizontal: 24,
-      paddingBottom: 48,
-      paddingTop: 12,
-    },
-    filterHandle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: colors.backgroundQuaternary,
-      alignSelf: 'center',
-      marginBottom: 20,
+      backgroundColor: colors.backgroundSecondary,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      height: '70%',
     },
     filterHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 24,
+      paddingHorizontal: 16,
+      height: 60,
     },
-    filterClear: {
-      fontSize: FontSize.sm,
-      fontFamily: FontFamily.medium,
-      color: colors.textSecondary,
+    filterClearButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 17,
+      borderWidth: 1,
+      borderColor: colors.textTertiary,
+      backgroundColor: `${colors.backgroundPrimary}80`,
+    },
+    filterApplyButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 17,
+      backgroundColor: colors.systemGreen,
+    },
+    filterButtonText: {
+      fontSize: 15,
+      fontFamily: FontFamily.semiBold,
     },
     filterTitle: {
-      fontSize: FontSize.md,
-      fontFamily: FontFamily.bold,
+      fontSize: 20,
+      fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
     },
-    filterApply: {
-      fontSize: FontSize.sm,
-      fontFamily: FontFamily.semiBold,
-      color: colors.systemGreen,
+    filterContent: {
+      paddingHorizontal: 24,
+      paddingTop: 24,
     },
     filterSectionTitle: {
-      fontSize: FontSize.md,
-      fontFamily: FontFamily.bold,
+      fontSize: 18,
+      fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
-      marginBottom: 12,
+      marginBottom: 16,
     },
     filterRow: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 10,
-      marginBottom: 24,
+      gap: 12,
+      marginBottom: 12,
     },
     filterChip: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 50,
-      borderWidth: 1.5,
-    },
-    filterChipText: {
-      fontSize: FontSize.sm,
-      fontFamily: FontFamily.medium,
-    },
-    applyButton: {
-      height: 52,
-      borderRadius: 50,
-      backgroundColor: colors.systemGreen,
+      flex: 1,
+      height: 40,
+      borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: colors.backgroundTertiary,
+      flexDirection: 'row',
+      gap: 6,
+    },
+    filterChipText: {
+      fontSize: 14,
+      fontFamily: FontFamily.medium,
+      color: colors.textPrimary,
+    },
+    separator: {
+      height: 1,
+      backgroundColor: colors.textTertiary,
+      opacity: 0.2,
+      marginVertical: 30,
+    },
+    filterHandle: {
+      width: 40,
+      height: 5,
+      borderRadius: 2.5,
+      backgroundColor: colors.textTertiary,
+      opacity: 0.5,
+      alignSelf: 'center',
       marginTop: 8,
-    },
-    applyButtonText: {
-      fontSize: FontSize.md,
-      fontFamily: FontFamily.semiBold,
-      color: colors.primaryWhite,
-    },
+    }
   });
+
+  const getSkillColor = (skill: string) => {
+    switch(skill) {
+      case 'beginner': return 'rgba(90, 200, 250, 0.7)'; // teal
+      case 'intermediate': return 'rgba(255, 204, 0, 0.7)'; // yellow
+      case 'experienced': return 'rgba(255, 149, 0, 0.7)'; // orange
+      case 'advanced': return 'rgba(255, 59, 48, 0.7)'; // red
+      default: return 'gray';
+    }
+  };
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
 
-        {/* Header */}
+        {/* Buttons (Fixed) */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+            <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
           </TouchableOpacity>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconButton} onPress={() => setShowFilter(true)}>
-              <Ionicons name="options-outline" size={20} color={colors.systemGreen} />
+            <TouchableOpacity 
+              style={styles.iconButton} 
+              onPress={() => setShowFilter(true)}
+            >
+              <Ionicons 
+                name={hasActiveFilters ? "options" : "options-outline"} 
+                size={20} 
+                color={colors.systemGreen} 
+              />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} onPress={() => setShowPost(true)}>
               <Ionicons name="add" size={22} color={colors.systemGreen} />
@@ -279,81 +454,86 @@ export default function MatchesScreen({ navigation, route }: any) {
           </View>
         </View>
 
-        {/* Title */}
-        <Text style={styles.title}>{SPORT_LABELS[sport]}</Text>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          {/* Title */}
+          <Text style={styles.title}>{sportLabel}</Text>
 
-        {/* Date Strip */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.dateStrip}
-        >
-          {dates.map((date, index) => {
-            const isSelected = selectedDate === index;
-            const isToday = index === 0;
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.dateItem,
-                  {
-                    backgroundColor: isSelected
-                      ? colors.textPrimary
-                      : colors.backgroundSecondary,
-                  },
-                ]}
-                onPress={() => setSelectedDate(index)}
-              >
-                <Text
+          {/* Date Strip */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dateStrip}
+          >
+            {dates.map((date, index) => {
+              const isSelected = selectedDateIndex === index;
+              return (
+                <TouchableOpacity
+                  key={index}
                   style={[
-                    styles.dateNumber,
+                    styles.dateItem,
                     {
-                      color: isSelected
-                        ? colors.backgroundPrimary
-                        : colors.textPrimary,
+                      backgroundColor: isSelected
+                        ? colors.textPrimary
+                        : colors.backgroundSecondary,
                     },
                   ]}
+                  onPress={() => setSelectedDateIndex(index)}
                 >
-                  {date.getDate()}
-                </Text>
-                <Text
-                  style={[
-                    styles.dateDay,
-                    {
-                      color: isSelected
-                        ? colors.backgroundPrimary
-                        : colors.textSecondary,
-                    },
-                  ]}
-                >
-                  {isToday ? 'Tod' : DAY_LABELS[date.getDay()]}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <Text
+                    style={[
+                      styles.dateNumber,
+                      {
+                        color: isSelected
+                          ? colors.backgroundPrimary
+                          : colors.textPrimary,
+                      },
+                    ]}
+                  >
+                    {date.day}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dateDay,
+                      {
+                        color: isSelected
+                          ? colors.backgroundPrimary
+                          : colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {date.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* Matches Collection */}
+          <View style={styles.scrollContent}>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.textPrimary} />
+              </View>
+            ) : filteredMatches.length === 0 ? (
+              <Text style={styles.noMatchesLabel}>No matches available on this day</Text>
+            ) : (
+              filteredMatches.map((match) => (
+                <MatchCellCard
+                  key={match.id}
+                  venue={match.venue}
+                  date={formatDate(match.matchDate)}
+                  startTime={formatTime(match.matchTime)}
+                  endTime={formatEndTime(match.matchTime)}
+                  slotsLeft={match.playersNeeded - match.playersRSVPed}
+                  totalSlots={match.playersNeeded}
+                  goingCount={match.playersRSVPed}
+                  onPress={() => navigation.navigate('MatchInfo', { match })}
+                />
+              ))
+            )}
+          </View>
         </ScrollView>
 
-        {/* Match Cards */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {mockMatches.map((match) => (
-            <MatchCellCard
-              key={match.id}
-              venue={match.venue}
-              date={match.date}
-              startTime={match.startTime}
-              endTime={match.endTime}
-              slotsLeft={match.slotsLeft}
-              totalSlots={match.totalSlots}
-              goingCount={match.goingCount}
-              onPress={() => navigation.navigate('MatchInfo', { match })}
-            />
-          ))}
-        </ScrollView>
-
-        {/* Sports Post Modal */}
         <SportsPostScreen
           visible={showPost}
           onClose={() => setShowPost(false)}
@@ -371,103 +551,109 @@ export default function MatchesScreen({ navigation, route }: any) {
             <View style={styles.filterOverlay}>
               <TouchableWithoutFeedback>
                 <View style={styles.filterSheet}>
-                  <View style={styles.filterHandle} />
+                   <View style={styles.filterHandle} />
+                   
+                   <View style={styles.filterHeader}>
+                     <TouchableOpacity style={styles.filterClearButton} onPress={clearAllFilters}>
+                       <Text style={[styles.filterButtonText, {color: colors.textPrimary}]}>Clear</Text>
+                     </TouchableOpacity>
+                     
+                     <Text style={styles.filterTitle}>Filters</Text>
+                     
+                     <TouchableOpacity style={styles.filterApplyButton} onPress={() => setShowFilter(false)}>
+                       <Text style={[styles.filterButtonText, {color: 'white'}]}>Apply</Text>
+                     </TouchableOpacity>
+                   </View>
 
-                  {/* Header */}
-                  <View style={styles.filterHeader}>
-                    <TouchableOpacity onPress={clearAll}>
-                      <Text style={styles.filterClear}>Clear</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.filterTitle}>Filters</Text>
-                    <TouchableOpacity onPress={() => setShowFilter(false)}>
-                      <Text style={styles.filterApply}>Apply</Text>
-                    </TouchableOpacity>
-                  </View>
+                   <ScrollView style={styles.filterContent} showsVerticalScrollIndicator={false}>
+                     
+                     {/* Skill */}
+                     <Text style={styles.filterSectionTitle}>Skill Level</Text>
+                     <View style={styles.filterRow}>
+                       {['beginner', 'intermediate'].map((skill) => {
+                         const isSelected = selectedSkills.includes(skill);
+                         return (
+                           <TouchableOpacity
+                             key={skill}
+                             style={[
+                               styles.filterChip,
+                               { backgroundColor: isSelected ? getSkillColor(skill) : colors.backgroundTertiary }
+                             ]}
+                             onPress={() => toggleItem(skill, selectedSkills, setSelectedSkills)}
+                           >
+                             <Text style={[styles.filterChipText, {color: isSelected ? 'white' : colors.textPrimary}]}>
+                               {skill.charAt(0).toUpperCase() + skill.slice(1)}
+                             </Text>
+                           </TouchableOpacity>
+                         )
+                       })}
+                     </View>
+                     <View style={styles.filterRow}>
+                       {['experienced', 'advanced'].map((skill) => {
+                         const isSelected = selectedSkills.includes(skill);
+                         return (
+                           <TouchableOpacity
+                             key={skill}
+                             style={[
+                               styles.filterChip,
+                               { backgroundColor: isSelected ? getSkillColor(skill) : colors.backgroundTertiary }
+                             ]}
+                             onPress={() => toggleItem(skill, selectedSkills, setSelectedSkills)}
+                           >
+                             <Text style={[styles.filterChipText, {color: isSelected ? 'white' : colors.textPrimary}]}>
+                               {skill.charAt(0).toUpperCase() + skill.slice(1)}
+                             </Text>
+                           </TouchableOpacity>
+                         )
+                       })}
+                     </View>
+                     
+                     <View style={styles.separator} />
 
-                  {/* Skill */}
-                  <Text style={styles.filterSectionTitle}>Skill</Text>
-                  <View style={styles.filterRow}>
-                    {['Beginner', 'Intermediate', 'Experienced', 'Advanced'].map((skill) => {
-                      const isSelected = selectedSkills.includes(skill);
-                      return (
+                     {/* Time */}
+                     <Text style={styles.filterSectionTitle}>Time</Text>
+                     <View style={styles.filterRow}>
+                       {['day', 'night'].map((time) => {
+                         const isSelected = selectedTimes.includes(time);
+                         const isDay = time === 'day';
+                         return (
+                           <TouchableOpacity
+                             key={time}
+                             style={[
+                               styles.filterChip,
+                               { backgroundColor: isSelected ? 'white' : colors.backgroundTertiary }
+                             ]}
+                             onPress={() => toggleItem(time, selectedTimes, setSelectedTimes)}
+                           >
+                             <Ionicons name={isDay ? 'sunny' : 'moon'} size={16} color={isSelected ? (isDay ? 'orange' : 'blue') : 'gray'} />
+                             <Text style={[styles.filterChipText, {color: isSelected ? 'black' : colors.textPrimary}]}>
+                               {time.charAt(0).toUpperCase() + time.slice(1)}
+                             </Text>
+                           </TouchableOpacity>
+                         )
+                       })}
+                     </View>
+
+                     <View style={styles.separator} />
+
+                     {/* Availability */}
+                     <Text style={styles.filterSectionTitle}>Availability</Text>
+                     <View style={styles.filterRow}>
                         <TouchableOpacity
-                          key={skill}
                           style={[
                             styles.filterChip,
-                            {
-                              backgroundColor: isSelected ? `${colors.systemGreen}22` : colors.backgroundSecondary,
-                              borderColor: isSelected ? colors.systemGreen : 'transparent',
-                            },
+                            { backgroundColor: isFillingFastEnabled ? 'white' : colors.backgroundTertiary, flex: 0.5 }
                           ]}
-                          onPress={() => toggleItem(skill, selectedSkills, setSelectedSkills)}
+                          onPress={toggleFillingFast}
                         >
-                          <Text style={[styles.filterChipText, { color: isSelected ? colors.systemGreen : colors.textPrimary }]}>
-                            {skill}
+                          <Ionicons name="trending-up" size={16} color={isFillingFastEnabled || !isFillingFastEnabled ? 'red' : 'red'} />
+                          <Text style={[styles.filterChipText, {color: isFillingFastEnabled ? 'black' : colors.textPrimary}]}>
+                            Filling fast
                           </Text>
                         </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                     </View>
 
-                  {/* Time */}
-                  <Text style={styles.filterSectionTitle}>Time</Text>
-                  <View style={styles.filterRow}>
-                    {[
-                      { label: '☀️  Day', value: 'day' },
-                      { label: '🌙  Night', value: 'night' },
-                    ].map((time) => {
-                      const isSelected = selectedTimes.includes(time.value);
-                      return (
-                        <TouchableOpacity
-                          key={time.value}
-                          style={[
-                            styles.filterChip,
-                            {
-                              backgroundColor: isSelected ? `${colors.systemGreen}22` : colors.backgroundSecondary,
-                              borderColor: isSelected ? colors.systemGreen : 'transparent',
-                            },
-                          ]}
-                          onPress={() => toggleItem(time.value, selectedTimes, setSelectedTimes)}
-                        >
-                          <Text style={[styles.filterChipText, { color: isSelected ? colors.systemGreen : colors.textPrimary }]}>
-                            {time.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  {/* Availability */}
-                  <Text style={styles.filterSectionTitle}>Availability</Text>
-                  <View style={styles.filterRow}>
-                    {[
-                      { label: '🔥  Filling fast', value: 'filling' },
-                      { label: '✅  Available', value: 'available' },
-                    ].map((avail) => {
-                      const isSelected = selectedAvailability.includes(avail.value);
-                      return (
-                        <TouchableOpacity
-                          key={avail.value}
-                          style={[
-                            styles.filterChip,
-                            {
-                              backgroundColor: isSelected ? `${colors.systemGreen}22` : colors.backgroundSecondary,
-                              borderColor: isSelected ? colors.systemGreen : 'transparent',
-                            },
-                          ]}
-                          onPress={() => toggleItem(avail.value, selectedAvailability, setSelectedAvailability)}
-                        >
-                          <Text style={[styles.filterChipText, { color: isSelected ? colors.systemGreen : colors.textPrimary }]}>
-                            {avail.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  {/* Apply Button */}
-                  
-
+                   </ScrollView>
                 </View>
               </TouchableWithoutFeedback>
             </View>
