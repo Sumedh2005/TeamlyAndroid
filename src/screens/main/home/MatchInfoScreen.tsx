@@ -493,7 +493,7 @@ export default function MatchInfoScreen({ navigation, route }: any) {
             <Text style={styles.sectionTitle}>Players</Text>
             <View style={[styles.sectionContainer, {minHeight: 100}]}>
               {rsvpPlayers.length === 0 ? (
-                <Text style={styles.emptyStateText}>No players have joined yet</Text>
+                <Text style={styles.emptyStateText}>No Players have joined yet</Text>
               ) : (
                 rsvpPlayers.map((player, index) => (
                   <View key={player.userId} style={[styles.playerCard, index !== rsvpPlayers.length - 1 && {marginBottom: 12}]}>
