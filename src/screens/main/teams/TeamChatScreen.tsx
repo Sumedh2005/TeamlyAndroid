@@ -97,9 +97,11 @@ export default function TeamChatScreen({ navigation }: any) {
           <Ionicons name="chevron-back" size={28} color={colors.systemGreen} />
         </TouchableOpacity>
 
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          AllStarsFC
-        </Text>
+       <TouchableOpacity onPress={() => navigation.navigate('TeamInfo')}>
+  <Text style={[styles.title, { color: colors.textPrimary }]}>
+    AllStarsFC
+  </Text>
+</TouchableOpacity>
 
         <View style={{ width: 28 }} />
       </View>
