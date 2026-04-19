@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
+import EditTeamInfoScreen from './EditTeamInfoScreen';
 
 const MOCK_PLAYERS = ['Raaghav', 'Rashmika', 'Dhruva'];
 
 export default function TeamInfoScreen({ navigation }: any) {
   const colors = useColors();
+  const [showEdit, setShowEdit] = useState(false);
+  const [teamNameState, setTeamNameState] = useState('AllStarsFC');
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.backgroundPrimary },
     safeArea: { flex: 1 },
-
-    // Header
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -55,8 +56,6 @@ export default function TeamInfoScreen({ navigation }: any) {
       fontFamily: FontFamily.medium,
       color: colors.systemGreen,
     },
-
-    // Avatar
     avatarSection: {
       alignItems: 'center',
       marginTop: 16,
@@ -96,8 +95,6 @@ export default function TeamInfoScreen({ navigation }: any) {
       fontFamily: FontFamily.regular,
       color: colors.systemGreen,
     },
-
-    // Menu
     menuCard: {
       backgroundColor: colors.backgroundSecondary,
       borderRadius: 20,
@@ -126,8 +123,6 @@ export default function TeamInfoScreen({ navigation }: any) {
       backgroundColor: colors.backgroundTertiary,
       marginHorizontal: 20,
     },
-
-    // Sections
     divider: {
       height: 0.5,
       backgroundColor: colors.backgroundTertiary,
@@ -141,8 +136,6 @@ export default function TeamInfoScreen({ navigation }: any) {
       paddingHorizontal: 20,
       marginBottom: 12,
     },
-
-    // Player rows
     playerCard: {
       backgroundColor: colors.backgroundSecondary,
       borderRadius: 16,
@@ -192,7 +185,7 @@ export default function TeamInfoScreen({ navigation }: any) {
               <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Team Info</Text>
-            <TouchableOpacity style={styles.editButton}>
+            <TouchableOpacity style={styles.editButton} onPress={() => setShowEdit(true)}>
               <Text style={styles.editText}>Edit</Text>
             </TouchableOpacity>
           </View>
@@ -202,7 +195,7 @@ export default function TeamInfoScreen({ navigation }: any) {
             <View style={styles.avatarCircle}>
               <Ionicons name="people-outline" size={52} color={colors.textTertiary} />
             </View>
-            <Text style={styles.teamName}>AllStarsFC</Text>
+            <Text style={styles.teamName}>{teamNameState}</Text>
             <View style={styles.teamSubtitle}>
               <Text style={styles.teamSubtitleText}>Team</Text>
               <Text style={styles.dot}>•</Text>
@@ -212,13 +205,13 @@ export default function TeamInfoScreen({ navigation }: any) {
 
           {/* Menu Card */}
           <View style={styles.menuCard}>
-            <TouchableOpacity style={styles.menuItem}>
-              <View style={styles.menuIcon}>
-                <Ionicons name="person-add-outline" size={22} color={colors.textPrimary} />
-              </View>
-              <Text style={styles.menuLabel}>Add players</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('AddPlayers')}>
+  <View style={styles.menuIcon}>
+    <Ionicons name="person-add-outline" size={22} color={colors.textPrimary} />
+  </View>
+  <Text style={styles.menuLabel}>Add players</Text>
+  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+</TouchableOpacity>
 
             <View style={styles.menuDivider} />
 
@@ -270,6 +263,13 @@ export default function TeamInfoScreen({ navigation }: any) {
 
           <View style={{ height: 40 }} />
         </ScrollView>
+
+        <EditTeamInfoScreen
+          visible={showEdit}
+          onClose={() => setShowEdit(false)}
+          teamName={teamNameState}
+          onSave={(name) => setTeamNameState(name)}
+        />
       </SafeAreaView>
     </View>
   );
