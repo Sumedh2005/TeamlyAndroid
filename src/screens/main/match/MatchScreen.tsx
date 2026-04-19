@@ -99,7 +99,14 @@ export default function MatchScreen({ navigation }: any) {
   };
 
   const navigateToMatchInfo = (match: DBMatch) => {
-    navigation.navigate('MatchInfo', { match });
+    navigation.navigate('MatchInfo', { 
+      match: { 
+        ...match, 
+        matchDate: match.matchDate.toISOString(), 
+        matchTime: match.matchTime.toISOString(), 
+        createdAt: match.createdAt.toISOString() 
+      } 
+    });
   };
 
   const currentMatches = activeTab === 'upcoming' ? upcomingMatches : pastMatches;

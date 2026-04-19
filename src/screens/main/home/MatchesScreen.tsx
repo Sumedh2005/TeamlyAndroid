@@ -527,7 +527,14 @@ export default function MatchesScreen({ navigation, route }: any) {
                   slotsLeft={match.playersNeeded - match.playersRSVPed}
                   totalSlots={match.playersNeeded}
                   goingCount={match.playersRSVPed}
-                  onPress={() => navigation.navigate('MatchInfo', { match })}
+                  onPress={() => navigation.navigate('MatchInfo', { 
+                    match: { 
+                      ...match, 
+                      matchDate: match.matchDate.toISOString(), 
+                      matchTime: match.matchTime.toISOString(), 
+                      createdAt: match.createdAt.toISOString() 
+                    } 
+                  })}
                 />
               ))
             )}

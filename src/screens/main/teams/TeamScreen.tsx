@@ -6,8 +6,8 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons'; // Add this import
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize, LineHeight } from '../../../theme/fonts';

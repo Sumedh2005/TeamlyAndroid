@@ -394,16 +394,16 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* Search */}
-        <View style={styles.searchBar}>
+        <TouchableOpacity 
+          style={styles.searchBar} 
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('Search')}
+        >
           <Ionicons name="search-outline" size={18} color={colors.textTertiary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search players"
-            placeholderTextColor={colors.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+          <Text style={[styles.searchInput, { color: colors.textTertiary }]}>
+            Search players
+          </Text>
+        </TouchableOpacity>
 
         {/* Reminder Banner */}
         {reminderMessage && (
@@ -495,7 +495,14 @@ export default function HomeScreen({ navigation }: any) {
                 slotsLeft={match.playersNeeded - match.playersRSVPed}
                 totalSlots={match.playersNeeded}
                 goingCount={match.playersRSVPed}
-                onPress={() => navigation.navigate('MatchInfo', { match })}
+                onPress={() => navigation.navigate('MatchInfo', { 
+                  match: { 
+                    ...match, 
+                    matchDate: match.matchDate.toISOString(), 
+                    matchTime: match.matchTime.toISOString(), 
+                    createdAt: match.createdAt.toISOString() 
+                  } 
+                })}
               />
             ))
           )}
