@@ -94,31 +94,35 @@ export default function AvatarSelectScreen({ navigation }: any) {
       paddingHorizontal: 24,
     },
     progressBarContainer: {
-      marginTop: 60,
-      height: 4,
+      marginTop: 100,
+      height: 8,
       backgroundColor: colors.backgroundTertiary,
-      borderRadius: 2,
+      borderRadius: 4,
+      width: '60%',
+      alignSelf: 'center',
     },
     progressBar: {
-      height: 4,
+      height: 8,
       width: `${progress * 100}%`,
       backgroundColor: colors.systemGreen,
-      borderRadius: 2,
+      borderRadius: 4,
     },
     title: {
-      fontSize: 28,
-      fontFamily: FontFamily.bold,
+      fontSize: 24,
+      fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
       marginTop: 40,
-      marginBottom: 40,
+      marginBottom: 60,
+      textAlign: 'center',
     },
     avatarContainer: {
-      width: '100%',
+      width: '60%',
       aspectRatio: 1,
       backgroundColor: colors.backgroundSecondary,
       borderRadius: 28,
       justifyContent: 'center',
       alignItems: 'center',
+      alignSelf: 'center',
     },
     avatarImage: {
       width: '100%',
@@ -156,7 +160,7 @@ export default function AvatarSelectScreen({ navigation }: any) {
       gap: 12,
     },
     skipButton: {
-      height: 56,
+      height: 52,
       paddingHorizontal: 48,
       borderRadius: 50,
       backgroundColor: colors.backgroundSecondary,
@@ -164,13 +168,13 @@ export default function AvatarSelectScreen({ navigation }: any) {
       alignItems: 'center',
     },
     skipText: {
-      fontSize: FontSize.md,
+      fontSize: FontSize.lg,
       fontFamily: FontFamily.medium,
       color: colors.textPrimary,
     },
     nextButton: {
-      width: '100%',
-      height: 56,
+      height: 52,
+      paddingHorizontal: 48,
       borderRadius: 50,
       backgroundColor: isLoading
         ? colors.systemGreen + '80'
@@ -179,7 +183,7 @@ export default function AvatarSelectScreen({ navigation }: any) {
       alignItems: 'center',
     },
     nextButtonText: {
-      fontSize: FontSize.md,
+      fontSize: FontSize.lg,
       fontFamily: FontFamily.semiBold,
       color: colors.primaryWhite,
     },
@@ -285,7 +289,7 @@ export default function AvatarSelectScreen({ navigation }: any) {
           {isLoading
             ? <ActivityIndicator color={colors.primaryWhite} />
             : <Text style={styles.nextButtonText}>
-                {image ? 'Next' : 'Skip'}
+                <Text>Next</Text>
               </Text>
           }
         </TouchableOpacity>
