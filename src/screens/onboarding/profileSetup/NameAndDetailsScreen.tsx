@@ -70,23 +70,29 @@ export default function NameAndDetailsScreen({ navigation }: any) {
       paddingHorizontal: 24,
     },
     progressBarContainer: {
-      marginTop: 60,
-      height: 4,
+      marginTop: 100,
+      height: 8,
       backgroundColor: colors.backgroundTertiary,
-      borderRadius: 2,
+      borderRadius: 4,
+      width: '60%',
+      alignSelf: 'center',
     },
     progressBar: {
-      height: 4,
+      height: 8,
       width: `${progress * 100}%`,
       backgroundColor: colors.systemGreen,
-      borderRadius: 2,
+      borderRadius: 4,
     },
     title: {
-      fontSize: 28,
-      fontFamily: FontFamily.bold,
+      fontSize: 24,
+      fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
       marginTop: 40,
       marginBottom: 32,
+      textAlign: 'center',
+    },
+    formGroup: {
+      marginTop: 24,
     },
     input: {
       height: 52,
@@ -101,17 +107,20 @@ export default function NameAndDetailsScreen({ navigation }: any) {
     genderContainer: {
       flexDirection: 'row',
       gap: 16,
+      
     },
     genderButton: {
       flex: 1,
       aspectRatio: 1,
-      borderRadius: 20,
+      borderRadius: 33,
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 12,
+      gap: 4,
+      
     },
     genderIcon: {
-      fontSize: 56,
+      fontSize: 80,
+      
     },
     genderLabel: {
       fontSize: FontSize.md,
@@ -123,15 +132,17 @@ export default function NameAndDetailsScreen({ navigation }: any) {
       bottom: 48,
       left: 24,
       right: 24,
+      alignItems: 'center',
     },
     nextButton: {
-      height: 56,
+      height: 52,
       borderRadius: 50,
       justifyContent: 'center',
       alignItems: 'center',
+      paddingHorizontal: 48,
     },
     nextButtonText: {
-      fontSize: FontSize.md,
+      fontSize: FontSize.lg,
       fontFamily: FontFamily.semiBold,
     },
   });
@@ -150,54 +161,56 @@ export default function NameAndDetailsScreen({ navigation }: any) {
       {/* Title */}
       <Text style={styles.title}>Set up your profile</Text>
 
-      {/* Name Input */}
-      <TextInput
-        style={styles.input}
-        placeholder="Name"
-        placeholderTextColor={colors.textTertiary}
-        value={name}
-        onChangeText={setName}
-        autoCapitalize="words"
-        editable={!isLoading}
-      />
+      <View style={styles.formGroup}>
+        {/* Name Input */}
+        <TextInput
+          style={styles.input}
+          placeholder="Name"
+          placeholderTextColor={colors.textTertiary}
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+          editable={!isLoading}
+        />
 
-      {/* Gender Selection */}
-      <View style={styles.genderContainer}>
-        <TouchableOpacity
-          style={[
-            styles.genderButton,
-            {
-              backgroundColor: gender === 'Male'
-                ? `${colors.systemGreen}22`
-                : colors.backgroundSecondary,
-              borderWidth: gender === 'Male' ? 2 : 0,
-              borderColor: gender === 'Male' ? colors.systemGreen : 'transparent',
-            },
-          ]}
-          onPress={() => setGender('Male')}
-          disabled={isLoading}
-        >
-          <Text style={[styles.genderIcon, { color: '#007AFF' }]}>♂</Text>
-          <Text style={styles.genderLabel}>Male</Text>
-        </TouchableOpacity>
+        {/* Gender Selection */}
+        <View style={styles.genderContainer}>
+          <TouchableOpacity
+            style={[
+              styles.genderButton,
+              {
+                backgroundColor: gender === 'Male'
+                  ? `${colors.systemGreen}22`
+                  : colors.backgroundSecondary,
+                borderWidth: gender === 'Male' ? 2 : 0,
+                borderColor: gender === 'Male' ? colors.systemGreen : 'transparent',
+              },
+            ]}
+            onPress={() => setGender('Male')}
+            disabled={isLoading}
+          >
+            <Text style={[styles.genderIcon, { color: '#007AFF' }]}>♂</Text>
+            <Text style={styles.genderLabel}>Male</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.genderButton,
-            {
-              backgroundColor: gender === 'Female'
-                ? `${colors.systemGreen}22`
-                : colors.backgroundSecondary,
-              borderWidth: gender === 'Female' ? 2 : 0,
-              borderColor: gender === 'Female' ? colors.systemGreen : 'transparent',
-            },
-          ]}
-          onPress={() => setGender('Female')}
-          disabled={isLoading}
-        >
-          <Text style={[styles.genderIcon, { color: '#FF2D55' }]}>♀</Text>
-          <Text style={styles.genderLabel}>Female</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.genderButton,
+              {
+                backgroundColor: gender === 'Female'
+                  ? `${colors.systemGreen}22`
+                  : colors.backgroundSecondary,
+                borderWidth: gender === 'Female' ? 2 : 0,
+                borderColor: gender === 'Female' ? colors.systemGreen : 'transparent',
+              },
+            ]}
+            onPress={() => setGender('Female')}
+            disabled={isLoading}
+          >
+            <Text style={[styles.genderIcon, { color: '#FF2D55' }]}>♀</Text>
+            <Text style={styles.genderLabel}>Female</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Next Button */}

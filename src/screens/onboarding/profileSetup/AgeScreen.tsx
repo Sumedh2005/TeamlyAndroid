@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,12 @@ export default function AgeScreen({ navigation }: any) {
   const progress = 2 / TOTAL_STEPS;
 
   const initialOffset = (DEFAULT_AGE - MIN_AGE) * ITEM_WIDTH;
+
+  useEffect(() => {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ x: initialOffset, y: 0, animated: false });
+    }, 50);
+  }, [initialOffset]);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offset = event.nativeEvent.contentOffset.x;
@@ -77,26 +83,34 @@ export default function AgeScreen({ navigation }: any) {
       paddingHorizontal: 24,
     },
     progressBarContainer: {
-      marginTop: 60,
-      height: 4,
+      marginTop: 100,
+      height: 8,
       backgroundColor: colors.backgroundTertiary,
-      borderRadius: 2,
+      borderRadius: 4,
+      width: '60%',
+      alignSelf: 'center',
     },
     progressBar: {
-      height: 4,
+      height: 8,
       width: `${progress * 100}%`,
       backgroundColor: colors.systemGreen,
-      borderRadius: 2,
+      borderRadius: 4,
     },
     title: {
-      fontSize: 28,
-      fontFamily: FontFamily.bold,
+      fontSize: 24,
+      fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
       marginTop: 40,
-      marginBottom: 60,
+      marginBottom: 20,
+      textAlign: 'center',
+    },
+    pickerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      marginBottom: 200,
     },
     agePicker: {
-      height: 100,
+      maxHeight: 120,
       marginHorizontal: -24,
     },
     ageItem: {
@@ -115,7 +129,7 @@ export default function AgeScreen({ navigation }: any) {
       alignItems: 'center',
     },
     nextButton: {
-      height: 56,
+      height: 52,
       paddingHorizontal: 48,
       borderRadius: 50,
       backgroundColor: isLoading ? colors.systemGreen + '80' : colors.systemGreen,
@@ -123,7 +137,7 @@ export default function AgeScreen({ navigation }: any) {
       alignItems: 'center',
     },
     nextButtonText: {
-      fontSize: FontSize.md,
+      fontSize: FontSize.lg,
       fontFamily: FontFamily.semiBold,
       color: colors.primaryWhite,
     },
@@ -142,38 +156,40 @@ export default function AgeScreen({ navigation }: any) {
       <Text style={styles.title}>What's your age</Text>
 
       {/* Age Picker */}
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={ITEM_WIDTH}
-        decelerationRate="fast"
-        contentOffset={{ x: initialOffset, y: 0 }}
-        onMomentumScrollEnd={handleScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingHorizontal: ITEM_WIDTH }}
-        style={styles.agePicker}
-      >
-        {ages.map((age) => {
-          const isSelected = age === selectedAge;
-          return (
-            <View key={age} style={styles.ageItem}>
-              <Text
-                style={[
-                  styles.ageText,
-                  {
-                    fontSize: isSelected ? 52 : 32,
-                    color: isSelected ? colors.systemGreen : colors.textTertiary,
-                    opacity: isSelected ? 1 : 0.5,
-                  },
-                ]}
-              >
-                {age}
-              </Text>
-            </View>
-          );
-        })}
-      </ScrollView>
+      <View style={styles.pickerContainer}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={ITEM_WIDTH}
+          decelerationRate="fast"
+          onScroll={handleScroll}
+          onMomentumScrollEnd={handleScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingHorizontal: ITEM_WIDTH }}
+          style={styles.agePicker}
+        >
+          {ages.map((age) => {
+            const isSelected = age === selectedAge;
+            return (
+              <View key={age} style={styles.ageItem}>
+                <Text
+                  style={[
+                    styles.ageText,
+                    {
+                      fontSize: isSelected ? 80 : 40,
+                      color: isSelected ? colors.systemGreen : colors.textTertiary,
+                      opacity: isSelected ? 1 : 0.4,
+                    },
+                  ]}
+                >
+                  {age}
+                </Text>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* Next Button */}
       <View style={styles.bottomContainer}>

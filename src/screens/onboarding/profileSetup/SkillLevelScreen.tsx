@@ -26,7 +26,7 @@ const SPORT_EMOJIS: Record<string, string> = {
   tennis:      '🎾',
 };
 
-const SLIDER_HEIGHT = 280;
+const SLIDER_HEIGHT = 340;
 
 export default function SkillLevelScreen({ navigation, route }: any) {
   const colors = useColors();
@@ -34,6 +34,7 @@ export default function SkillLevelScreen({ navigation, route }: any) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sliderValue, setSliderValue] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [dragY, setDragY] = useState<number | null>(null);
 
   // Accumulates skill levels as user goes through each sport
   const skillLevelsRef = useRef<Record<string, string>>({});
@@ -46,12 +47,17 @@ export default function SkillLevelScreen({ navigation, route }: any) {
   const isLast = currentIndex === selectedSports.length - 1;
   const currentSkill = SKILL_LEVELS[sliderValue];
 
-  const updateSlider = (pageY: number) => {
+  const updateSlider = (pageY: number, isDragging: boolean) => {
     const relativeY = pageY - sliderTopY.current;
     const clamped = Math.max(0, Math.min(SLIDER_HEIGHT, relativeY));
     const level = Math.round(
       ((SLIDER_HEIGHT - clamped) / SLIDER_HEIGHT) * (SKILL_LEVELS.length - 1)
     );
+    if (isDragging) {
+      setDragY(clamped);
+    } else {
+      setDragY(null);
+    }
     setSliderValue(level);
   };
 
@@ -59,8 +65,10 @@ export default function SkillLevelScreen({ navigation, route }: any) {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (event) => updateSlider(event.nativeEvent.pageY),
-      onPanResponderMove: (event) => updateSlider(event.nativeEvent.pageY),
+      onPanResponderGrant: (event) => updateSlider(event.nativeEvent.pageY, true),
+      onPanResponderMove: (event) => updateSlider(event.nativeEvent.pageY, true),
+      onPanResponderRelease: () => setDragY(null),
+      onPanResponderTerminate: () => setDragY(null),
     })
   ).current;
 
@@ -99,9 +107,12 @@ export default function SkillLevelScreen({ navigation, route }: any) {
     }
   };
 
-  const thumbPosition =
-    SLIDER_HEIGHT - (sliderValue / (SKILL_LEVELS.length - 1)) * SLIDER_HEIGHT;
-  const fillHeight = SLIDER_HEIGHT - thumbPosition;
+  const currentThumbPos = dragY !== null
+    ? dragY
+    : SLIDER_HEIGHT - (sliderValue / (SKILL_LEVELS.length - 1)) * SLIDER_HEIGHT;
+
+  const thumbPosition = currentThumbPos;
+  const fillHeight = SLIDER_HEIGHT - currentThumbPos;
 
   const styles = StyleSheet.create({
     container: {
@@ -110,46 +121,51 @@ export default function SkillLevelScreen({ navigation, route }: any) {
       paddingHorizontal: 24,
     },
     progressBarContainer: {
-      marginTop: 60,
-      height: 4,
+      marginTop: 100,
+      height: 8,
       backgroundColor: colors.backgroundTertiary,
-      borderRadius: 2,
+      borderRadius: 4,
+      width: '60%',
+      alignSelf: 'center',
     },
     progressBar: {
-      height: 4,
+      height: 8,
       width: `${progress * 100}%`,
       backgroundColor: colors.systemGreen,
-      borderRadius: 2,
+      borderRadius: 4,
     },
     titleRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       marginTop: 40,
       gap: 8,
     },
     title: {
       fontSize: 24,
-      fontFamily: FontFamily.bold,
+      fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
     },
     sportEmoji: {
-      fontSize: 32,
+      fontSize: 28,
       textAlign: 'center',
       marginTop: 8,
-      marginBottom: 32,
+      marginBottom: 0
+      ,
     },
     content: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       flex: 1,
+      gap: 64,
     },
     labelsContainer: {
-      flex: 1,
       height: SLIDER_HEIGHT,
       justifyContent: 'space-between',
+      alignItems: 'flex-end',
     },
     levelLabel: {
-      fontSize: 22,
       fontFamily: FontFamily.bold,
     },
     sliderContainer: {
@@ -194,7 +210,7 @@ export default function SkillLevelScreen({ navigation, route }: any) {
       alignItems: 'center',
     },
     nextButton: {
-      height: 56,
+      height: 52,
       paddingHorizontal: 48,
       borderRadius: 50,
       backgroundColor: isLoading
@@ -204,7 +220,7 @@ export default function SkillLevelScreen({ navigation, route }: any) {
       alignItems: 'center',
     },
     nextButtonText: {
-      fontSize: FontSize.md,
+      fontSize: FontSize.lg,
       fontFamily: FontFamily.semiBold,
       color: colors.primaryWhite,
     },
@@ -238,6 +254,7 @@ export default function SkillLevelScreen({ navigation, route }: any) {
                   {
                     color: isSelected ? currentSkill.color : colors.textTertiary,
                     opacity: isSelected ? 1 : 0.4,
+                    fontSize: isSelected ? 28 : 24,
                   },
                 ]}
               >
