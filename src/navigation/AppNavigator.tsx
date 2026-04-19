@@ -8,6 +8,7 @@ import MatchInfoScreen from '../screens/main/home/MatchInfoScreen';
 import TeamChatScreen from '../screens/main/teams/TeamChatScreen';
 import UserProfileScreen from '../screens/main/profile/UserProfileScreen';
 import TeamInfoScreen from '../screens/main/teams/TeamInfoScreen';
+import AddPlayersScreen from '../screens/main/teams/AddPlayersScreen';
 import SearchScreen from '../screens/main/home/SearchScreen';
 import SettingsScreen from '../screens/main/profile/SettingsScreen';
 import EditProfileScreen from '../screens/main/profile/EditProfileScreen';
@@ -34,6 +35,7 @@ export default function AppNavigator() {
         <Stack.Screen name="TeamChat" component={TeamChatScreen} />
         <Stack.Screen name="UserProfileScreen" component={UserProfileScreen} />
         <Stack.Screen name="TeamInfo" component={TeamInfoScreen} />
+        <Stack.Screen name="AddPlayers" component={AddPlayersScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen 
