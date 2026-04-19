@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import ChallengeTeamScreen from './ChallengeTeamScreen';
+import MatchRequestScreen from './MatchRequestScreen';
 
 interface Message {
   id: string;
@@ -37,12 +38,12 @@ export default function TeamChatScreen({ navigation }: any) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState(MOCK_MESSAGES);
   const [showChallenge, setShowChallenge] = useState(false);
+  const [showRequests, setShowRequests] = useState(false);
 
-  const isCaptain = true; // 🔥 toggle this
+  const isCaptain = true;
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
-
     const newMessage: Message = {
       id: Date.now().toString(),
       text: message,
@@ -53,32 +54,19 @@ export default function TeamChatScreen({ navigation }: any) {
       }),
       isOwn: true,
     };
-
     setMessages([...messages, newMessage]);
     setMessage('');
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwn = item.isOwn;
-
     return (
-      <View
-        style={[
-          styles.messageRow,
-          { justifyContent: isOwn ? 'flex-end' : 'flex-start' },
-        ]}
-      >
-        <View
-          style={[
-            styles.bubble,
-            isOwn ? styles.ownBubble : styles.otherBubble,
-          ]}
-        >
+      <View style={[styles.messageRow, { justifyContent: isOwn ? 'flex-end' : 'flex-start' }]}>
+        <View style={[styles.bubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
           <View style={styles.messageHeader}>
             {!isOwn && <Text style={styles.userName}>{item.userName}</Text>}
             <Text style={styles.time}>{item.timestamp}</Text>
           </View>
-
           <Text style={[styles.text, { color: isOwn ? '#fff' : '#000' }]}>
             {item.text}
           </Text>
@@ -88,20 +76,17 @@ export default function TeamChatScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
+
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation?.goBack()}>
           <Ionicons name="chevron-back" size={28} color={colors.systemGreen} />
         </TouchableOpacity>
 
-       <TouchableOpacity onPress={() => navigation.navigate('TeamInfo')}>
-  <Text style={[styles.title, { color: colors.textPrimary }]}>
-    AllStarsFC
-  </Text>
-</TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('TeamInfo')}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>AllStarsFC</Text>
+        </TouchableOpacity>
 
         <View style={{ width: 28 }} />
       </View>
@@ -115,13 +100,14 @@ export default function TeamChatScreen({ navigation }: any) {
       />
 
       {/* INPUT */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.inputWrapper}>
-          
-          {/* Left Icon */}
-          <TouchableOpacity style={styles.leftIcon}>
+
+          {/* Left Icon - Team Matches */}
+          <TouchableOpacity
+            style={styles.leftIcon}
+            onPress={() => navigation.navigate('TeamMatches')}
+          >
             <Ionicons name="football-outline" size={20} color="#000" />
           </TouchableOpacity>
 
@@ -135,10 +121,7 @@ export default function TeamChatScreen({ navigation }: any) {
           />
 
           {/* Send */}
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={handleSendMessage}
-          >
+          <TouchableOpacity style={styles.iconBtn} onPress={handleSendMessage}>
             <Ionicons
               name="send"
               size={20}
@@ -149,6 +132,7 @@ export default function TeamChatScreen({ navigation }: any) {
           {/* Captain Actions */}
           {isCaptain && (
             <>
+              {/* Challenge */}
               <TouchableOpacity
                 style={styles.iconBtn}
                 onPress={() => setShowChallenge(true)}
@@ -156,9 +140,10 @@ export default function TeamChatScreen({ navigation }: any) {
                 <Ionicons name="flag-outline" size={20} color="#000" />
               </TouchableOpacity>
 
+              {/* Match Requests */}
               <TouchableOpacity
                 style={styles.iconBtn}
-                onPress={() => console.log('Requisition')}
+                onPress={() => setShowRequests(true)}
               >
                 <Ionicons name="document-outline" size={20} color="#000" />
               </TouchableOpacity>
@@ -167,19 +152,24 @@ export default function TeamChatScreen({ navigation }: any) {
         </View>
       </KeyboardAvoidingView>
 
-      {/* 🔥 CHALLENGE MODAL */}
+      {/* Challenge Modal */}
       <ChallengeTeamScreen
         visible={showChallenge}
         onClose={() => setShowChallenge(false)}
       />
+
+      {/* Match Requests Modal */}
+      <MatchRequestScreen
+        visible={showRequests}
+        onClose={() => setShowRequests(false)}
+      />
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
-  /* HEADER */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -188,57 +178,45 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
     paddingBottom: 10,
   },
-
   title: {
     fontSize: 32,
     fontWeight: '700',
   },
-
-  /* CHAT */
   messageRow: {
     flexDirection: 'row',
     marginBottom: 10,
     paddingHorizontal: 12,
   },
-
   bubble: {
     maxWidth: '75%',
     padding: 12,
     borderRadius: 18,
   },
-
   ownBubble: {
     backgroundColor: '#34C759',
     borderBottomRightRadius: 6,
   },
-
   otherBubble: {
     backgroundColor: '#E5E5EA',
     borderBottomLeftRadius: 6,
   },
-
   messageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 4,
   },
-
   userName: {
     fontSize: 12,
     color: '#6b6b6b',
     fontWeight: '500',
   },
-
   time: {
     fontSize: 11,
     color: '#8e8e93',
   },
-
   text: {
     fontSize: 16,
   },
-
-  /* INPUT */
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -248,7 +226,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-
   leftIcon: {
     width: 36,
     height: 36,
@@ -258,13 +235,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 8,
   },
-
   input: {
     flex: 1,
     fontSize: 16,
     paddingVertical: 6,
   },
-
   iconBtn: {
     marginLeft: 8,
   },

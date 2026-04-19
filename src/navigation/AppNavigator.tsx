@@ -17,6 +17,8 @@ import EditAgeScreen from '../screens/main/profile/EditAgeScreen';
 import AddNewSportScreen from '../screens/main/profile/AddNewSportScreen';
 import NewSportSkillScreen from '../screens/main/profile/NewSportSkillScreen';
 import UpdateSkillScreen from '../screens/main/profile/UpdateSkillScreen';
+import TeamMatchesScreen from '../screens/main/teams/TeamMatchesScreen';
+import TeamMatchInfoScreen from '../screens/main/teams/TeamMatchInfoScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -52,6 +54,8 @@ export default function AppNavigator() {
         <Stack.Screen name="AddNewSport" component={AddNewSportScreen} />
         <Stack.Screen name="NewSportSkill" component={NewSportSkillScreen} />
         <Stack.Screen name="UpdateSkill" component={UpdateSkillScreen} />
+        <Stack.Screen name="TeamMatches" component={TeamMatchesScreen} />
+        <Stack.Screen name="TeamMatchInfo" component={TeamMatchInfoScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
