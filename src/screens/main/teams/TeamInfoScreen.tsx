@@ -215,13 +215,13 @@ export default function TeamInfoScreen({ navigation }: any) {
 
             <View style={styles.menuDivider} />
 
-            <TouchableOpacity style={styles.menuItem}>
-              <View style={styles.menuIcon}>
-                <Ionicons name="grid-outline" size={22} color={colors.textPrimary} />
-              </View>
-              <Text style={styles.menuLabel}>Matches</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('TeamMatches')}>
+  <View style={styles.menuIcon}>
+    <Ionicons name="grid-outline" size={22} color={colors.textPrimary} />
+  </View>
+  <Text style={styles.menuLabel}>Matches</Text>
+  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+</TouchableOpacity>
 
             <View style={styles.menuDivider} />
 
