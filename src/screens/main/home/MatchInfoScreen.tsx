@@ -26,7 +26,13 @@ const SKILL_COLORS: Record<string, string> = {
 
 export default function MatchInfoScreen({ navigation, route }: any) {
   const colors = useColors();
-  const { match: initialMatch }: { match: DBMatch } = route.params;
+  const { match: rawMatch } = route.params;
+  const initialMatch: DBMatch = {
+    ...rawMatch,
+    matchDate: new Date(rawMatch.matchDate),
+    matchTime: new Date(rawMatch.matchTime),
+    createdAt: new Date(rawMatch.createdAt),
+  };
 
   const [match, setMatch] = useState<DBMatch>(initialMatch);
   const [loading, setLoading] = useState<boolean>(true);
