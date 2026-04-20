@@ -186,7 +186,7 @@ export default function ProfileScreen({ navigation }: any) {
       height: 65,
       borderRadius: 33,
       borderWidth: 0.6,
-      borderColor: colors.border,
+      borderColor: colors.backgroundTertiary,
       backgroundColor: colors.backgroundSecondary,
       flexDirection: 'row',
       alignItems: 'center',

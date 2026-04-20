@@ -10,6 +10,7 @@ import UserProfileScreen from '../screens/main/profile/UserProfileScreen';
 import TeamInfoScreen from '../screens/main/teams/TeamInfoScreen';
 import AddPlayersScreen from '../screens/main/teams/AddPlayersScreen';
 import SearchScreen from '../screens/main/home/SearchScreen';
+import NotificationsScreen from '../screens/main/home/NotificationsScreen';
 import SettingsScreen from '../screens/main/profile/SettingsScreen';
 import EditProfileScreen from '../screens/main/profile/EditProfileScreen';
 import EditNameScreen from '../screens/main/profile/EditNameScreen';
@@ -39,13 +40,13 @@ export default function AppNavigator() {
         <Stack.Screen name="TeamInfo" component={TeamInfoScreen} />
         <Stack.Screen name="AddPlayers" component={AddPlayersScreen} />
         <Stack.Screen name="Search" component={SearchScreen} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen 
           name="EditProfile" 
           component={EditProfileScreen} 
           options={{
             presentation: 'formSheet',
-            sheetAllowedDetents: 'all',
             sheetGrabberVisible: true,
           }}
         />

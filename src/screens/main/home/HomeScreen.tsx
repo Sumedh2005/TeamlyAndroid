@@ -387,7 +387,7 @@ export default function HomeScreen({ navigation }: any) {
             <TouchableOpacity style={styles.iconButton} onPress={() => setShowPost(true)}>
               <Ionicons name="add" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Notifications')}>
               <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
