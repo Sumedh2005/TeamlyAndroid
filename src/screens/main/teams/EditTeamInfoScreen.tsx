@@ -8,21 +8,52 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
+import { supabase } from '../../../lib/supabase';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
+  teamId: string;
   teamName: string;
   onSave: (name: string) => void;
 }
 
-export default function EditTeamInfoScreen({ visible, onClose, teamName, onSave }: Props) {
+export default function EditTeamInfoScreen({ visible, onClose, teamId, teamName, onSave }: Props) {
   const colors = useColors();
   const [name, setName] = useState(teamName);
+  const [loading, setLoading] = useState(false);
+
+  const trimmed = name.trim();
+  const isChanged = trimmed !== teamName.trim();
+  const isValid = trimmed.length > 0 && trimmed.length <= 30 && isChanged;
+
+  const handleSave = async () => {
+    if (!isValid) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('teams')
+        .update({ name: trimmed })
+        .eq('id', teamId);
+
+      if (error) throw error;
+
+      onSave(trimmed);
+      onClose();
+    } catch (err) {
+      console.error('Failed to update team name:', err);
+      Alert.alert('Error', 'Failed to update team name. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const styles = StyleSheet.create({
     overlay: {
@@ -64,8 +95,6 @@ export default function EditTeamInfoScreen({ visible, onClose, teamName, onSave 
       justifyContent: 'center',
       alignItems: 'center',
     },
-
-    // Avatar
     avatarSection: {
       alignItems: 'center',
       marginBottom: 28,
@@ -91,8 +120,6 @@ export default function EditTeamInfoScreen({ visible, onClose, teamName, onSave 
       borderWidth: 2,
       borderColor: colors.backgroundSecondary,
     },
-
-    // Input
     inputLabel: {
       fontSize: FontSize.sm,
       fontFamily: FontFamily.regular,
@@ -113,12 +140,9 @@ export default function EditTeamInfoScreen({ visible, onClose, teamName, onSave 
       backgroundColor: colors.backgroundPrimary,
       marginBottom: 28,
     },
-
-    // Save Button
     saveButton: {
       height: 52,
       borderRadius: 50,
-      backgroundColor: colors.systemGreen,
       justifyContent: 'center',
       alignItems: 'center',
       alignSelf: 'center',
@@ -148,7 +172,7 @@ export default function EditTeamInfoScreen({ visible, onClose, teamName, onSave 
               <View style={styles.headerRow}>
                 <View style={{ width: 32 }} />
                 <Text style={styles.headerTitle}>Edit Team</Text>
-                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <TouchableOpacity style={styles.closeButton} onPress={onClose} disabled={loading}>
                   <Ionicons name="close" size={22} color={colors.textPrimary} />
                 </TouchableOpacity>
               </View>
@@ -168,21 +192,28 @@ export default function EditTeamInfoScreen({ visible, onClose, teamName, onSave 
               <TextInput
                 style={styles.input}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(text) => setName(text.slice(0, 30))}
                 autoFocus
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
+                editable={!loading}
+                maxLength={30}
               />
 
               {/* Save */}
               <TouchableOpacity
-                style={styles.saveButton}
-                onPress={() => {
-                  onSave(name);
-                  onClose();
-                }}
+                style={[
+                  styles.saveButton,
+                  { backgroundColor: isValid && !loading ? colors.systemGreen : colors.backgroundTertiary },
+                ]}
+                onPress={handleSave}
+                disabled={!isValid || loading}
               >
-                <Text style={styles.saveText}>Save</Text>
+                {loading ? (
+                  <ActivityIndicator color={colors.primaryWhite} />
+                ) : (
+                  <Text style={styles.saveText}>Save</Text>
+                )}
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>

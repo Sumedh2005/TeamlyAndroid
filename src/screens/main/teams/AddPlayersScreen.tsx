@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,39 +6,211 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
+import { supabase } from '../../../lib/supabase';
 
-const MOCK_FRIENDS = [
-  { id: '1', name: 'Aditi Onkar' },
-  { id: '2', name: 'Dhruva' },
-  { id: '3', name: 'Rushil' },
-  { id: '4', name: 'Sonia' },
-  { id: '5', name: 'Karan' },
-  { id: '6', name: 'Meera' },
-  { id: '7', name: 'Arjun' },
-  { id: '8', name: 'Priya' },
-];
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
-export default function AddPlayersScreen({ navigation }: any) {
+interface Friend {
+  id: string;
+  name: string;
+}
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
+
+export default function AddPlayersScreen({ navigation, route }: any) {
   const colors = useColors();
+  const isDark = colors.isDark;
+
+  const { team } = route.params ?? {};
+
+  // -------- state --------
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>('Someone');
+  const [allFriends, setAllFriends] = useState<Friend[]>([]);
+  const [filteredFriends, setFilteredFriends] = useState<Friend[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string[]>(['1', '3']);
 
-  const filtered = MOCK_FRIENDS.filter(f =>
-    f.name.toLowerCase().includes(search.toLowerCase())
-  );
+  // -------- load data --------
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // 1. Get current user
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) return;
+      setCurrentUserId(userId);
 
-  const toggleSelect = (id: string) => {
-    setSelected(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
+      // 2. Get current user's name
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', userId)
+        .single();
+      setCurrentUserName(profileData?.name ?? 'Someone');
+
+      if (!team?.id) return;
+
+      // 3. Fetch accepted friends (both directions — bidirectional friendship)
+      const [{ data: sentFriends }, { data: receivedFriends }] = await Promise.all([
+        supabase
+          .from('friends')
+          .select('friend_id')
+          .eq('user_id', userId)
+          .eq('status', 'accepted'),
+        supabase
+          .from('friends')
+          .select('user_id')
+          .eq('friend_id', userId)
+          .eq('status', 'accepted'),
+      ]);
+
+      // Collect all friend IDs (deduplicated)
+      const friendIdSet = new Set<string>();
+      (sentFriends ?? []).forEach((r: any) => friendIdSet.add(r.friend_id));
+      (receivedFriends ?? []).forEach((r: any) => friendIdSet.add(r.user_id));
+
+      if (friendIdSet.size === 0) {
+        setAllFriends([]);
+        setFilteredFriends([]);
+        return;
+      }
+
+      // 4. Get current team member IDs
+      const { data: membersData } = await supabase
+        .from('team_members')
+        .select('user_id')
+        .eq('team_id', team.id);
+
+      const teamMemberIdSet = new Set<string>(
+        (membersData ?? []).map((m: any) => m.user_id)
+      );
+
+      // 5. Filter friends not already in the team
+      const eligibleFriendIds = [...friendIdSet].filter(
+        id => !teamMemberIdSet.has(id)
+      );
+
+      if (eligibleFriendIds.length === 0) {
+        setAllFriends([]);
+        setFilteredFriends([]);
+        return;
+      }
+
+      // 6. Fetch profiles for eligible friends
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', eligibleFriendIds);
+
+      const friends: Friend[] = (profilesData ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name ?? 'Unknown',
+      }));
+
+      setAllFriends(friends);
+      setFilteredFriends(friends);
+    } catch (err) {
+      console.error('❌ AddPlayersScreen loadData:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [team?.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // -------- search --------
+  const handleSearch = (text: string) => {
+    setSearch(text);
+    if (text.trim() === '') {
+      setFilteredFriends(allFriends);
+    } else {
+      setFilteredFriends(
+        allFriends.filter(f =>
+          f.name.toLowerCase().includes(text.toLowerCase())
+        )
+      );
+    }
   };
 
-  const styles = StyleSheet.create({
+  // -------- select / deselect --------
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // -------- send invitations --------
+  const handleInvite = async () => {
+    if (selectedIds.size === 0 || !team) return;
+    setSending(true);
+    Keyboard.dismiss();
+
+    try {
+      const selectedFriends = allFriends.filter(f => selectedIds.has(f.id));
+
+      // Insert one notification per selected friend
+      const notifications = selectedFriends.map(friend => ({
+        sender_id: currentUserId,
+        receiver_id: friend.id,
+        type: 'team_invitation',
+        message: `${currentUserName} has invited you to join their team ${team.name}`,
+      }));
+
+      const { error } = await supabase
+        .from('notifications')
+        .insert(notifications);
+
+      if (error) throw error;
+
+      // Remove invited friends from list (mirror Swift behaviour)
+      const invitedIds = new Set(selectedFriends.map(f => f.id));
+      const remaining = allFriends.filter(f => !invitedIds.has(f.id));
+      setAllFriends(remaining);
+      setFilteredFriends(remaining.filter(f =>
+        search.trim() === '' || f.name.toLowerCase().includes(search.toLowerCase())
+      ));
+      setSelectedIds(new Set());
+
+      Alert.alert(
+        'Success',
+        selectedFriends.length === 1
+          ? `Invitation sent to ${selectedFriends[0].name}!`
+          : `Invitations sent to ${selectedFriends.length} players!`
+      );
+    } catch (err) {
+      console.error('❌ AddPlayersScreen handleInvite:', err);
+      Alert.alert('Error', 'Failed to send invitations. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // -------- derived --------
+  const hasSelection = selectedIds.size > 0;
+
+  // -------- styles --------
+  const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.backgroundPrimary },
     safeArea: { flex: 1 },
 
@@ -48,14 +220,16 @@ export default function AddPlayersScreen({ navigation }: any) {
       paddingTop: 8,
       paddingBottom: 16,
     },
-    backButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.backgroundSecondary,
+    glassBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: 14,
     },
     title: {
       fontSize: 32,
@@ -85,7 +259,7 @@ export default function AddPlayersScreen({ navigation }: any) {
     listContent: {
       paddingHorizontal: 20,
       paddingTop: 20,
-      paddingBottom: 100,
+      paddingBottom: 110,
       gap: 10,
     },
 
@@ -114,106 +288,178 @@ export default function AddPlayersScreen({ navigation }: any) {
       color: colors.textPrimary,
     },
     checkbox: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
       justifyContent: 'center',
       alignItems: 'center',
     },
 
-    // Add Button
+    // Empty / loading
+    centered: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 10,
+    },
+    emptyText: {
+      fontSize: FontSize.md,
+      fontFamily: FontFamily.medium,
+      color: colors.textTertiary,
+      textAlign: 'center',
+      paddingHorizontal: 40,
+    },
+
+    // Invite button
     bottomContainer: {
       position: 'absolute',
-      bottom: 40,
+      bottom: 36,
       left: 0,
       right: 0,
       alignItems: 'center',
     },
-    addButton: {
-      height: 52,
-      paddingHorizontal: 64,
+    inviteBtn: {
+      height: 48,
+      paddingHorizontal: 52,
       borderRadius: 50,
-      backgroundColor: colors.systemGreen,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    addButtonText: {
+    inviteBtnText: {
       fontSize: FontSize.md,
       fontFamily: FontFamily.semiBold,
-      color: colors.primaryWhite,
+      color: '#FFFFFF',
     },
   });
 
+  // -------- render --------
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+    <View style={s.container}>
+      {/* Green gradient tint at the top */}
+      <LinearGradient
+        colors={
+          isDark
+            ? ['rgba(0,38,0,1)', 'transparent']
+            : ['rgba(53,199,89,0.3)', 'transparent']
+        }
+        style={StyleSheet.absoluteFillObject}
+        pointerEvents="none"
+      />
+
+      <SafeAreaView style={s.safeArea}>
 
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <View style={s.header}>
+          <TouchableOpacity style={s.glassBtn} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
           </TouchableOpacity>
-          <Text style={styles.title}>Add Players</Text>
+          <Text style={s.title}>Add Players</Text>
 
           {/* Search */}
-          <View style={styles.searchBar}>
+          <View style={s.searchBar}>
             <Ionicons name="search-outline" size={18} color={colors.textTertiary} />
             <TextInput
-              style={styles.searchInput}
+              style={s.searchInput}
               placeholder="Search friends..."
               placeholderTextColor={colors.textTertiary}
               value={search}
-              onChangeText={setSearch}
+              onChangeText={handleSearch}
             />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => handleSearch('')}>
+                <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
-        {/* Friends List */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        >
-          {filtered.map(friend => {
-            const isSelected = selected.includes(friend.id);
-            return (
-              <TouchableOpacity
-                key={friend.id}
-                style={styles.friendRow}
-                onPress={() => toggleSelect(friend.id)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.avatarCircle}>
-                  <Ionicons name="person-outline" size={22} color={colors.textTertiary} />
-                </View>
-                <Text style={styles.friendName}>{friend.name}</Text>
-                <View
+        {/* Content */}
+        {loading ? (
+          <View style={s.centered}>
+            <ActivityIndicator size="large" color={colors.textPrimary} />
+          </View>
+        ) : filteredFriends.length === 0 ? (
+          <View style={s.centered}>
+            <Ionicons name="people-outline" size={48} color={colors.textTertiary} />
+            <Text style={s.emptyText}>
+              {search.trim() !== ''
+                ? 'No friends match your search'
+                : allFriends.length === 0
+                ? 'No friends available to add'
+                : 'No friends match your search'}
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={s.listContent}
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={Keyboard.dismiss}
+          >
+            {filteredFriends.map(friend => {
+              const isSelected = selectedIds.has(friend.id);
+              return (
+                <TouchableOpacity
+                  key={friend.id}
+                  style={s.friendRow}
+                  onPress={() => toggleSelect(friend.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={s.avatarCircle}>
+                    <Ionicons name="person" size={22} color={colors.textTertiary} />
+                  </View>
+                  <Text style={s.friendName}>{friend.name}</Text>
+                  <View
+                    style={[
+                      s.checkbox,
+                      {
+                        backgroundColor: isSelected
+                          ? colors.systemGreen
+                          : colors.backgroundTertiary,
+                      },
+                    ]}
+                  >
+                    {isSelected && (
+                      <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* Invite Button */}
+        {!loading && (
+          <View style={s.bottomContainer}>
+            <TouchableOpacity
+              style={[
+                s.inviteBtn,
+                {
+                  backgroundColor: hasSelection
+                    ? colors.systemGreen
+                    : colors.backgroundTertiary,
+                },
+              ]}
+              onPress={handleInvite}
+              disabled={!hasSelection || sending}
+              activeOpacity={0.85}
+            >
+              {sending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text
                   style={[
-                    styles.checkbox,
-                    {
-                      backgroundColor: isSelected
-                        ? colors.systemGreen
-                        : colors.backgroundTertiary,
-                    },
+                    s.inviteBtnText,
+                    { color: hasSelection ? '#FFFFFF' : colors.textTertiary },
                   ]}
                 >
-                  {isSelected && (
-                    <Ionicons name="checkmark" size={16} color={colors.primaryWhite} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* Add Button */}
-        <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.addButtonText}>Add</Text>
-          </TouchableOpacity>
-        </View>
+                  {selectedIds.size > 1 ? `Invite (${selectedIds.size})` : 'Invite'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
       </SafeAreaView>
     </View>

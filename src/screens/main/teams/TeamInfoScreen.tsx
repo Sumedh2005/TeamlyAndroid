@@ -532,11 +532,12 @@ export default function TeamInfoScreen({ route, navigation }: any) {
         </ScrollView>
 
         <EditTeamInfoScreen
-          visible={showEdit}
-          onClose={() => setShowEdit(false)}
-          teamName={team?.name || ''}
-          onSave={handleEditSave}
-        />
+  visible={showEdit}
+  onClose={() => setShowEdit(false)}
+  teamId={activeTeamId}        // ← use this instead of team?.id
+  teamName={team?.name || ''}
+  onSave={handleEditSave}
+/>
       </SafeAreaView>
     </View>
   );

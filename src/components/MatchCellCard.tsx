@@ -34,6 +34,29 @@ const getTimeIcon = (startTime: string): 'sunny' | 'moon' => {
   return hour24 >= 6 && hour24 < 17 ? 'sunny' : 'moon';
 };
 
+const formatDisplayDate = (dateStr: string): string => {
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10) + 2000;
+
+    const date = new Date(year, month, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.getTime() === today.getTime()) {
+      return 'Today';
+    } else if (date.getTime() === tomorrow.getTime()) {
+      return 'Tomorrow';
+    }
+  }
+  return dateStr;
+};
+
 export default function MatchCellCard({
   venue,
   date,
@@ -47,6 +70,7 @@ export default function MatchCellCard({
   const colors = useColors();
   const slotColor = getSlotColor(slotsLeft, totalSlots);
   const timeIcon = getTimeIcon(startTime);
+  const displayDate = formatDisplayDate(date);
 
   const styles = StyleSheet.create({
     card: {
@@ -116,7 +140,7 @@ export default function MatchCellCard({
         <View style={styles.infoRow}>
           <View style={styles.infoLeft}>
             <Ionicons name="calendar-outline" size={18} color={colors.textPrimary} />
-            <Text style={styles.infoText}>{date}</Text>
+            <Text style={styles.infoText}>{displayDate}</Text>
           </View>
           <View style={[styles.slotBadge, { backgroundColor: slotColor }]}>
             <Text style={styles.slotText}>{slotsLeft} slots left</Text>

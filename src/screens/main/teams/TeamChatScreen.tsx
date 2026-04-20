@@ -43,7 +43,7 @@ export default function TeamChatScreen({ route, navigation }: any) {
   const isCaptain = team?.isCaptain ?? false;
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
+    let intervalId: ReturnType<typeof setInterval>;
 
     const initializeChat = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -225,7 +225,7 @@ export default function TeamChatScreen({ route, navigation }: any) {
         <View style={styles.inputWrapper}>
           <TouchableOpacity
             style={styles.leftIcon}
-            onPress={() => navigation.navigate('TeamMatches', { teamId })}
+            onPress={() => navigation.navigate('TeamMatches', { teamId, team })}
           >
             <Ionicons name="football-outline" size={20} color="#000" />
           </TouchableOpacity>
@@ -259,8 +259,8 @@ export default function TeamChatScreen({ route, navigation }: any) {
         </View>
       </KeyboardAvoidingView>
 
-      <ChallengeTeamScreen visible={showChallenge} onClose={() => setShowChallenge(false)} />
-      <MatchRequestScreen visible={showRequests} onClose={() => setShowRequests(false)} />
+      <ChallengeTeamScreen visible={showChallenge} onClose={() => setShowChallenge(false)} team={team} teamId={teamId} />
+      <MatchRequestScreen visible={showRequests} onClose={() => setShowRequests(false)} team={team} teamId={teamId} />
     </SafeAreaView>
   );
 }

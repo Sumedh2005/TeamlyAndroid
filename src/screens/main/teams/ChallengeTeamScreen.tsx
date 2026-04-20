@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,171 +9,461 @@ import {
   Switch,
   TouchableWithoutFeedback,
   Keyboard,
-  FlatList,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useColors } from '../../../theme/colors';
+import { FontFamily, FontSize } from '../../../theme/fonts';
+import { supabase } from '../../../lib/supabase';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface ChallengeTeam {
+  id: string;
+  name: string;
+}
 
 interface Props {
   visible: boolean;
   onClose: () => void;
+  team?: any;   // full team object from route: { id, name, sport_id, captain_id, ... }
+  teamId?: string; // fallback if team object not available
 }
 
-const TEAMS = ['Kick Off FC', 'Scoregasm FC', 'Super FC'];
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-export default function ChallengeTeamScreen({ visible, onClose }: Props) {
+function formatTime(d: Date) {
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatDate(d: Date) {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function toDateStr(d: Date) {
+  return d.toISOString().split('T')[0]; // yyyy-MM-dd
+}
+
+function toTimeStr(d: Date) {
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}:00`;
+}
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
+
+export default function ChallengeTeamScreen({ visible, onClose, team, teamId }: Props) {
+  const colors = useColors();
+  const isDark = colors.isDark;
+
+  // -------- form state --------
   const [venue, setVenue] = useState('');
-  const [date, setDate] = useState(new Date());
-  const [fromTime, setFromTime] = useState(new Date());
-  const [toTime, setToTime] = useState(new Date());
-  const [isChallenge, setIsChallenge] = useState(false);
+  const [date, setDate] = useState<Date | null>(null);
+  const [fromTime, setFromTime] = useState<Date | null>(null);
+  const [toTime, setToTime] = useState<Date | null>(null);
+  const [isChallengeMode, setIsChallengeMode] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(null);
+  const [isTeamListOpen, setIsTeamListOpen] = useState(false);
 
+  // Pickers (Android shows inline; iOS uses bottom sheet logic)
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
 
-  const formatTime = (d: Date) =>
-    d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // -------- data state --------
+  const [challengeTeams, setChallengeTeams] = useState<ChallengeTeam[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const formatDate = (d: Date) =>
-    d.toLocaleDateString();
+  const activeTeamId = team?.id ?? teamId;
+
+  // -------- fetch same-sport teams --------
+  const loadChallengeTeams = useCallback(async () => {
+    if (!activeTeamId) return;
+    setTeamsLoading(true);
+    try {
+      // Get current team's sport_id
+      let sportId = team?.sport_id;
+      if (!sportId) {
+        const { data } = await supabase
+          .from('teams')
+          .select('sport_id')
+          .eq('id', activeTeamId)
+          .single();
+        sportId = data?.sport_id;
+      }
+
+      if (!sportId) {
+        setChallengeTeams([]);
+        return;
+      }
+
+      // Fetch all teams with same sport, excluding current team
+      const { data } = await supabase
+        .from('teams')
+        .select('id, name')
+        .eq('sport_id', sportId)
+        .neq('id', activeTeamId)
+        .order('name');
+
+      setChallengeTeams(data ?? []);
+    } catch (err) {
+      console.error('❌ loadChallengeTeams:', err);
+    } finally {
+      setTeamsLoading(false);
+    }
+  }, [activeTeamId, team?.sport_id]);
+
+  // -------- get current user on open --------
+  useEffect(() => {
+    if (!visible) return;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUserId(session?.user?.id ?? null);
+    })();
+  }, [visible]);
+
+  // -------- load teams when challenge mode turns on --------
+  useEffect(() => {
+    if (isChallengeMode && visible) {
+      loadChallengeTeams();
+    }
+  }, [isChallengeMode, visible, loadChallengeTeams]);
+
+  // -------- reset on close --------
+  const handleClose = () => {
+    setVenue('');
+    setDate(null);
+    setFromTime(null);
+    setToTime(null);
+    setIsChallengeMode(false);
+    setSelectedTeamId(null);
+    setSelectedTeamName(null);
+    setIsTeamListOpen(false);
+    setChallengeTeams([]);
+    onClose();
+  };
+
+  // -------- submit --------
+  const handleChallenge = async () => {
+    if (!venue.trim()) {
+      Alert.alert('Missing Field', 'Please enter a venue');
+      return;
+    }
+    if (!fromTime) {
+      Alert.alert('Missing Field', 'Please select a start time');
+      return;
+    }
+    if (!date) {
+      Alert.alert('Missing Field', 'Please select a date');
+      return;
+    }
+    if (isChallengeMode && !selectedTeamId) {
+      Alert.alert('Missing Field', 'Please select a team to challenge');
+      return;
+    }
+    if (!activeTeamId || !currentUserId) {
+      Alert.alert('Error', 'Team or user data not available');
+      return;
+    }
+
+    setSubmitting(true);
+    Keyboard.dismiss();
+
+    try {
+      const formattedDate = toDateStr(date);
+      const formattedTime = toTimeStr(fromTime);
+
+      if (isChallengeMode) {
+        // Create a match_request
+        const { error } = await supabase.from('match_requests').insert({
+          challenging_team_id: activeTeamId,
+          challenged_team_id: selectedTeamId,
+          proposed_venue: venue.trim(),
+          proposed_date: formattedDate,
+          proposed_time: formattedTime,
+          status: 'pending',
+        });
+        if (error) throw error;
+
+        const challengedName =
+          challengeTeams.find(t => t.id === selectedTeamId)?.name ?? 'team';
+        Alert.alert('Challenge Sent!', `Match request sent to ${challengedName}`, [
+          { text: 'OK', onPress: handleClose },
+        ]);
+      } else {
+        // Get sport_id
+        let sportId = team?.sport_id;
+        if (!sportId) {
+          const { data } = await supabase
+            .from('teams')
+            .select('sport_id')
+            .eq('id', activeTeamId)
+            .single();
+          sportId = data?.sport_id;
+        }
+
+        const { error } = await supabase.from('matches').insert({
+          match_type: 'team_internal',
+          venue: venue.trim(),
+          match_date: formattedDate,
+          match_time: formattedTime,
+          sport_id: sportId,
+          team_id: activeTeamId,
+          players_needed: 0,
+          posted_by_user_id: currentUserId,
+        });
+        if (error) throw error;
+
+        Alert.alert('Match Created!', 'Internal match has been scheduled', [
+          { text: 'OK', onPress: handleClose },
+        ]);
+      }
+    } catch (err: any) {
+      console.error('❌ handleChallenge:', err);
+      Alert.alert('Error', err?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // -------- styles --------
+  const bg = isDark ? '#151515' : '#F2F2F7';
+  const cardBg = isDark ? '#282828' : '#E5E5EA';
+  const textColor = isDark ? '#FFFFFF' : '#000000';
+  const placeholderColor = isDark ? '#8E8E93' : '#8E8E93';
+  const teamBoxBg = isDark ? '#1E1E1E' : '#D1D1D6';
+  const green = colors.systemGreen;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
 
-      {/* OUTSIDE CLICK */}
-      <TouchableWithoutFeedback onPress={onClose}>
+      {/* Dimmed backdrop */}
+      <TouchableWithoutFeedback onPress={handleClose}>
         <View style={styles.overlay} />
       </TouchableWithoutFeedback>
 
-      <View style={styles.wrapper}>
+      {/* Sheet */}
+      <View style={[styles.sheet, { backgroundColor: bg }]}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.container}>
+          <View>
+            {/* Drag bar */}
+            <View style={[styles.dragBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.3)' : '#C7C7CC' }]} />
 
-            <View style={styles.dragBar} />
-            <Text style={styles.title}>Challenge Team</Text>
+            {/* Title */}
+            <Text style={[styles.title, { color: textColor }]}>Challenge Team</Text>
 
-            {/* Venue */}
-            <View style={styles.inputBox}>
-              <Text style={styles.icon}>📍</Text>
-              <TextInput
-                placeholder="Venue"
-                value={venue}
-                onChangeText={setVenue}
-                style={styles.input}
-              />
-            </View>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.content}
+            >
 
-            {/* Time */}
-            <View style={styles.row}>
-              <View style={styles.labelRow}>
-                <Ionicons name="time-outline" size={20} color="#34C759" />
-                <Text style={styles.label}>Time</Text>
-              </View>
-
-              <View style={styles.timeRow}>
-                <TouchableOpacity
-                  style={styles.timeInput}
-                  onPress={() => setShowFromPicker(true)}
-                >
-                  <Text>{formatTime(fromTime)}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.timeInput}
-                  onPress={() => setShowToPicker(true)}
-                >
-                  <Text>{formatTime(toTime)}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Date */}
-            <View style={styles.row}>
-              <View style={styles.labelRow}>
-                <Ionicons name="calendar-outline" size={20} color="#34C759" />
-                <Text style={styles.label}>Date</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.fullInput}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text>{formatDate(date)}</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Toggle */}
-            <View style={styles.row}>
-              <View style={styles.labelRow}>
-                <Ionicons name="people-outline" size={20} color="#34C759" />
-                <Text style={styles.label}>Challenge</Text>
-              </View>
-
-              <Switch value={isChallenge} onValueChange={setIsChallenge} />
-            </View>
-
-            {/* 🔥 TEAM LIST (ONLY WHEN TOGGLE ON) */}
-            {isChallenge && (
-              <View style={styles.teamBox}>
-                <FlatList
-                  data={TEAMS}
-                  keyExtractor={(item) => item}
-                  renderItem={({ item }) => (
-                    <View style={styles.teamRow}>
-                      <Text style={styles.teamText}>{item}</Text>
-                      <TouchableOpacity style={styles.sendBtn}>
-                        <Text style={styles.sendText}>Send</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+              {/* ── Venue ── */}
+              <View style={[styles.inputRow, { backgroundColor: cardBg }]}>
+                <Text style={styles.pinEmoji}>📍</Text>
+                <TextInput
+                  style={[styles.textInput, { color: textColor }]}
+                  placeholder="Venue"
+                  placeholderTextColor={placeholderColor}
+                  value={venue}
+                  onChangeText={setVenue}
                 />
               </View>
-            )}
 
-            {/* Button */}
-            <TouchableOpacity style={styles.button}>
-              <Text style={styles.buttonText}>Challenge</Text>
-            </TouchableOpacity>
+              {/* ── Time ── */}
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldLabel}>
+                  <Ionicons name="time-outline" size={22} color={green} />
+                  <Text style={[styles.labelText, { color: textColor }]}>Time</Text>
+                </View>
+                <View style={styles.timePills}>
+                  <TouchableOpacity
+                    style={[styles.pill, { backgroundColor: cardBg }]}
+                    onPress={() => setShowFromPicker(true)}
+                  >
+                    <Text style={[styles.pillText, { color: fromTime ? textColor : placeholderColor }]}>
+                      {fromTime ? formatTime(fromTime) : 'From'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.pill, { backgroundColor: cardBg }]}
+                    onPress={() => setShowToPicker(true)}
+                  >
+                    <Text style={[styles.pillText, { color: toTime ? textColor : placeholderColor }]}>
+                      {toTime ? formatTime(toTime) : 'To'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
+              {/* ── Date ── */}
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldLabel}>
+                  <Ionicons name="calendar-outline" size={22} color={green} />
+                  <Text style={[styles.labelText, { color: textColor }]}>Date</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.datePill, { backgroundColor: cardBg }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={[styles.pillText, { color: date ? textColor : placeholderColor }]}>
+                    {date ? formatDate(date) : 'Select date'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* ── Challenge toggle ── */}
+              <View style={styles.fieldRow}>
+                <View style={styles.fieldLabel}>
+                  <Ionicons name="people-circle-outline" size={24} color={green} />
+                  <Text style={[styles.labelText, { color: textColor }]}>Challenge</Text>
+                </View>
+                <Switch
+                  value={isChallengeMode}
+                  onValueChange={(v) => {
+                    setIsChallengeMode(v);
+                    setSelectedTeamId(null);
+                    setSelectedTeamName(null);
+                    setIsTeamListOpen(false);
+                  }}
+                  trackColor={{ false: '#767577', true: green }}
+                  thumbColor="#fff"
+                />
+              </View>
+
+              {/* ── Team list (challenge mode) ── */}
+              {isChallengeMode && (
+                <>
+                  {/* Collapsed pill — tap to open (only when no team chosen yet) */}
+                  {!isTeamListOpen && (
+                    <TouchableOpacity
+                      style={[
+                        styles.teamPill,
+                        { backgroundColor: cardBg },
+                      ]}
+                      onPress={() => {
+                        // Can't reopen once a team is selected
+                        if (!selectedTeamId) setIsTeamListOpen(true);
+                      }}
+                      activeOpacity={selectedTeamId ? 1 : 0.7}
+                    >
+                      <Text style={[styles.teamPillText, { color: selectedTeamId ? textColor : placeholderColor }]}>
+                        {selectedTeamName ?? 'Challenge team'}
+                      </Text>
+                      {!selectedTeamId && (
+                        <Ionicons name="chevron-down" size={16} color={placeholderColor} />
+                      )}
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Expanded list */}
+                  {isTeamListOpen && (
+                    <View style={[styles.teamBox, { backgroundColor: teamBoxBg }]}>
+                      {teamsLoading ? (
+                        <ActivityIndicator color={green} style={{ marginVertical: 16 }} />
+                      ) : challengeTeams.length === 0 ? (
+                        <Text style={[styles.emptyText, { color: placeholderColor }]}>
+                          No teams available to challenge
+                        </Text>
+                      ) : (
+                        challengeTeams.map(t => (
+                          <View
+                            key={t.id}
+                            style={[styles.teamRow, { backgroundColor: cardBg }]}
+                          >
+                            <Text style={[styles.teamName, { color: textColor }]}>{t.name}</Text>
+                            <TouchableOpacity
+                              style={[styles.sendBtn, { backgroundColor: green }]}
+                              onPress={() => {
+                                setSelectedTeamId(t.id);
+                                setSelectedTeamName(t.name);
+                                setIsTeamListOpen(false); // close & lock
+                              }}
+                            >
+                              <Text style={[styles.sendBtnText, { color: '#fff' }]}>Send</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))
+                      )}
+                    </View>
+                  )}
+                </>
+              )}
+
+              {/* ── Challenge button ── */}
+              <TouchableOpacity
+                style={[styles.challengeBtn, { backgroundColor: green }]}
+                onPress={handleChallenge}
+                disabled={submitting}
+                activeOpacity={0.85}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.challengeBtnText}>Challenge</Text>
+                )}
+              </TouchableOpacity>
+
+            </ScrollView>
           </View>
         </TouchableWithoutFeedback>
       </View>
 
-      {/* PICKERS */}
+      {/* ── Pickers ── */}
       {showDatePicker && (
         <DateTimePicker
-          value={date}
+          value={date ?? new Date()}
           mode="date"
-          display="default"
-          onChange={(e, selected) => {
-            setShowDatePicker(false);
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minimumDate={new Date()}
+          onChange={(_, selected) => {
+            setShowDatePicker(Platform.OS === 'ios');
             if (selected) setDate(selected);
+            if (Platform.OS !== 'ios') setShowDatePicker(false);
           }}
         />
       )}
-
       {showFromPicker && (
         <DateTimePicker
-          value={fromTime}
+          value={fromTime ?? new Date()}
           mode="time"
-          display="default"
-          onChange={(e, selected) => {
-            setShowFromPicker(false);
-            if (selected) setFromTime(selected);
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minuteInterval={15}
+          onChange={(_, selected) => {
+            setShowFromPicker(Platform.OS === 'ios');
+            if (selected) {
+              setFromTime(selected);
+              // Auto-set To = From + 1 hour
+              const auto = new Date(selected.getTime() + 60 * 60 * 1000);
+              setToTime(auto);
+            }
+            if (Platform.OS !== 'ios') setShowFromPicker(false);
           }}
         />
       )}
-
       {showToPicker && (
         <DateTimePicker
-          value={toTime}
+          value={toTime ?? new Date()}
           mode="time"
-          display="default"
-          onChange={(e, selected) => {
-            setShowToPicker(false);
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minuteInterval={15}
+          onChange={(_, selected) => {
+            setShowToPicker(Platform.OS === 'ios');
             if (selected) setToTime(selected);
+            if (Platform.OS !== 'ios') setShowToPicker(false);
           }}
         />
       )}
@@ -181,129 +471,173 @@ export default function ChallengeTeamScreen({ visible, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)' },
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
 
-  wrapper: {
-    position: 'absolute',
-    bottom: 0,
-    width: '100%',
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
 
-  container: {
-    backgroundColor: '#F2F2F7',
+  sheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 20,
+    paddingBottom: 32,
+    maxHeight: '88%',
   },
 
   dragBar: {
     width: 40,
     height: 5,
-    backgroundColor: '#C7C7CC',
     borderRadius: 3,
     alignSelf: 'center',
-    marginBottom: 10,
+    marginTop: 10,
+    marginBottom: 6,
   },
 
   title: {
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 20,
-  },
-
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E5E5EA',
-    borderRadius: 20,
-    paddingHorizontal: 12,
     marginBottom: 16,
   },
 
-  icon: { marginRight: 8 },
-
-  input: { flex: 1, paddingVertical: 10 },
-
-  row: { marginBottom: 16 },
-
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    gap: 16,
   },
 
-  label: {
+  // Venue row
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    height: 50,
+  },
+  pinEmoji: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  textInput: {
+    flex: 1,
     fontSize: 16,
+  },
+
+  // Generic label row
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 52,
+  },
+  fieldLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  labelText: {
+    fontSize: 18,
     fontWeight: '600',
   },
 
-  timeRow: {
+  // Time pills
+  timePills: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
-
-  timeInput: {
-    flex: 1,
-    backgroundColor: '#E5E5EA',
-    borderRadius: 20,
-    padding: 12,
+  pill: {
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    minWidth: 80,
     alignItems: 'center',
   },
-
-  fullInput: {
-    backgroundColor: '#E5E5EA',
-    borderRadius: 20,
-    padding: 12,
-  },
-
-  /* TEAM LIST */
-  teamBox: {
-    backgroundColor: '#D1D1D6',
-    borderRadius: 20,
-    padding: 12,
-    marginBottom: 16,
-  },
-
-  teamRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#E5E5EA',
-    borderRadius: 20,
-    padding: 12,
-    marginBottom: 10,
-  },
-
-  teamText: {
-    fontSize: 16,
+  pillText: {
+    fontSize: 15,
     fontWeight: '500',
   },
 
-  sendBtn: {
-    backgroundColor: '#34C759',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-
-  sendText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-
-  button: {
-    backgroundColor: '#34C759',
+  // Date pill (full width on right side)
+  datePill: {
+    borderRadius: 22,
+    paddingHorizontal: 18,
     paddingVertical: 12,
-    borderRadius: 25,
+    flex: 1,
+    marginLeft: 16,
     alignItems: 'center',
   },
 
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
+  // Team list box
+  teamBox: {
+    borderRadius: 20,
+    padding: 10,
+    gap: 8,
+  },
+  teamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  teamName: {
     fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  sendBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 7,
+    borderRadius: 20,
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  sendBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 15,
+    paddingVertical: 16,
+  },
+
+  // Collapsed team selector pill
+  teamPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  teamPillText: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+
+  // Challenge button
+  challengeBtn: {
+    borderRadius: 25,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  challengeBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
