@@ -106,12 +106,15 @@ export default function CollegeVerificationScreen({ navigation, route }: any) {
       color: colors.textSecondary,
     },
     title: {
-      fontSize: 28,
-      fontFamily: FontFamily.bold,
+      fontSize: 24,
+      fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
       marginTop: 12,
-      marginBottom: 40,
+      marginBottom: 20,
       textAlign: 'center',
+    },
+    formContainer: {
+      marginTop: 60,
     },
     input: {
       height: 52,
@@ -122,7 +125,6 @@ export default function CollegeVerificationScreen({ navigation, route }: any) {
       fontFamily: FontFamily.regular,
       color: colors.textPrimary,
       marginBottom: 8,
-      textAlign: 'center',
     },
     hintText: {
       fontSize: FontSize.sm,
@@ -139,9 +141,10 @@ export default function CollegeVerificationScreen({ navigation, route }: any) {
       justifyContent: 'center',
       alignItems: 'center',
       alignSelf: 'center',
+      marginTop: 24,
     },
     buttonText: {
-      fontSize: FontSize.md,
+      fontSize: FontSize.lg,
       fontFamily: FontFamily.semiBold,
       color: colors.primaryWhite,
     },
@@ -160,39 +163,41 @@ export default function CollegeVerificationScreen({ navigation, route }: any) {
 
         <Text style={styles.title}>Verify College Id</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder={
-            requiredDomain ? `yourname${requiredDomain}` : 'College mail id'
-          }
-          placeholderTextColor={colors.textTertiary}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+        <View style={styles.formContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder={
+              requiredDomain ? `yourname${requiredDomain}` : 'College mail id'
+            }
+            placeholderTextColor={colors.textTertiary}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
-        {/* Domain hint when email doesn't match */}
-        {showDomainHint && (
-          <Text style={styles.hintText}>
-            Use your {college.name} email ({requiredDomain})
-          </Text>
-        )}
-
-        <TouchableOpacity
-          style={[
-            styles.button,
-            { opacity: emailIsCollegeValid && !loading ? 1 : 0.5 },
-          ]}
-          disabled={!emailIsCollegeValid || loading}
-          onPress={handleSendOtp}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.primaryWhite} />
-          ) : (
-            <Text style={styles.buttonText}>Send OTP</Text>
+          {/* Domain hint when email doesn't match */}
+          {showDomainHint && (
+            <Text style={styles.hintText}>
+              Use your {college.name} email ({requiredDomain})
+            </Text>
           )}
-        </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              { opacity: emailIsCollegeValid && !loading ? 1 : 0.5 },
+            ]}
+            disabled={!emailIsCollegeValid || loading}
+            onPress={handleSendOtp}
+          >
+            {loading ? (
+              <ActivityIndicator color={colors.primaryWhite} />
+            ) : (
+              <Text style={styles.buttonText}>Send OTP</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableWithoutFeedback>
   );
