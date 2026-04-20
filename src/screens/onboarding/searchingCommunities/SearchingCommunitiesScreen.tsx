@@ -77,10 +77,13 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
       backgroundColor: colors.backgroundPrimary,
     },
     mapImage: {
-      width: '100%',
-      height: '100%',
+      width: '85%',
+      height: height * 0.45,
       position: 'absolute',
-      opacity: 0.6,
+      alignSelf: 'center',
+      top: '50%',
+      marginTop: -(height * 0.225),
+      opacity: 0.4,
     },
 
     // Alert Card
@@ -143,7 +146,7 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
       borderTopRightRadius: 24,
       paddingTop: 12,
       paddingHorizontal: 20,
-      height: height * 0.75,
+      height: '85%',
     },
     modalHandle: {
       width: 40,
@@ -196,7 +199,7 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
 
     // City Result Modal
     cityModalContainer: {
-      backgroundColor: colors.backgroundSecondary,
+      backgroundColor: colors.backgroundPrimary,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingTop: 12,
@@ -215,8 +218,8 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.backgroundPrimary,
-      borderRadius: 50,
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 40,
       paddingVertical: 14,
       paddingHorizontal: 20,
       marginBottom: 12,
@@ -287,8 +290,8 @@ export default function SearchingCommunitiesScreen({ navigation }: any) {
         <TouchableWithoutFeedback onPress={() => setShowSearch(false)}>
           <View style={styles.modalOverlay}>
             <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={{ width: '100%' }}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={{ flex: 1, justifyContent: 'flex-end' }}
             >
               <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.modalContainer}>

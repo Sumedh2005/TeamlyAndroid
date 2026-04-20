@@ -128,10 +128,8 @@ export default function NameAndDetailsScreen({ navigation }: any) {
       color: colors.textPrimary,
     },
     bottomContainer: {
-      position: 'absolute',
-      bottom: 48,
-      left: 24,
-      right: 24,
+      marginTop: 'auto',
+      marginBottom: 48,
       alignItems: 'center',
     },
     nextButton: {
