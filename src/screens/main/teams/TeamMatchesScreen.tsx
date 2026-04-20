@@ -22,7 +22,7 @@ interface MatchData {
   endTime: string;
   goingCount: number;
   isChallenge: boolean;
-  challengerTeam?: string;
+  opponentTeam?: string;
   originalData: any;
 }
 
@@ -33,15 +33,43 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
   const [upcomingMatches, setUpcomingMatches] = useState<MatchData[]>([]);
   const [pastMatches, setPastMatches] = useState<MatchData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolvedTeamName, setResolvedTeamName] = useState<string | undefined>(undefined);
 
   const { team: routeTeam, teamId: routeTeamId } = route.params || {};
   const activeTeamId = routeTeam?.id || routeTeamId;
+  // If the route team has a name use it; otherwise it will be resolved after fetching
+  const activeTeamName = resolvedTeamName ?? routeTeam?.name;
 
   useEffect(() => {
-    fetchMatches();
+    // Resolve team name first (may need a DB fetch), then load matches
+    resolveTeamName();
   }, [activeTeamId]);
 
-  const fetchMatches = async () => {
+  const resolveTeamName = async () => {
+    // If we already have the name from the route, no need to fetch
+    if (routeTeam?.name) {
+      setResolvedTeamName(routeTeam.name);
+      await fetchMatches(routeTeam.name);
+      return;
+    }
+    // Otherwise fetch from DB using the team id
+    if (activeTeamId) {
+      try {
+        const { data } = await supabase
+          .from('teams')
+          .select('name')
+          .eq('id', activeTeamId)
+          .single();
+        const name = data?.name;
+        setResolvedTeamName(name);
+        await fetchMatches(name);
+      } catch {
+        await fetchMatches(undefined);
+      }
+    }
+  };
+
+  const fetchMatches = async (teamName?: string) => {
     if (!activeTeamId) return;
     setLoading(true);
     
@@ -90,25 +118,33 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
         const matchDate = new Date(`${m.match_date}T${m.match_time || '00:00:00'}`);
         const isChallenge = m.match_type === 'team_challenge';
         
-        // Correctly handle the opponent mapping exactly matching Swift logic
-        let challengerTeam: string | undefined = undefined;
+        // Determine the correct opponent name to display (matching Swift logic):
+        // teamName param = current team's name (guaranteed resolved before this call)
+        // If the current team is team_id → show opponent_team name
+        // If the current team is opponent_team_id → show team name (they challenged us)
+        let opponentTeam: string | undefined = undefined;
         if (isChallenge) {
-           const currentTeamName = routeTeam?.name;
-           if (currentTeamName) {
-             if (m.opponent_team?.name === currentTeamName) {
-                challengerTeam = m.team?.name;
-             } else if (m.team?.name === currentTeamName) {
-                // If team name matches current, the opponent name is correctly the opponent
-                challengerTeam = m.opponent_team?.name;
-             }
-           } else {
-             challengerTeam = m.opponent_team?.name;
-           }
+          const dbTeamName = m.team?.name;               // team_id's name
+          const dbOpponentName = m.opponent_team?.name;  // opponent_team_id's name
+
+          if (dbOpponentName && dbOpponentName !== teamName) {
+            // opponent_team is NOT us → they are the opponent
+            opponentTeam = dbOpponentName;
+          } else if (dbTeamName && dbTeamName !== teamName) {
+            // team is NOT us → they are the opponent (we were challenged)
+            opponentTeam = dbTeamName;
+          } else {
+            // Fallback (shouldn't normally hit)
+            opponentTeam = dbOpponentName || dbTeamName || 'Opponent Team';
+          }
         }
 
         const dateStr = new Date(`${m.match_date}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '/');
-        const startTimeStr = new Date(`${m.match_date}T${m.match_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-        const endTimeStr = m.end_time ? new Date(`${m.match_date}T${m.end_time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '1 hr'; 
+        const startDate = new Date(`${m.match_date}T${m.match_time}`);
+        const startTimeStr = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        // Compute end time as start + 1 hour (matching Swift's formattedTimeText logic)
+        const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+        const endTimeStr = endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
         const formatted: MatchData = {
           id: m.id,
@@ -118,7 +154,7 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
           endTime: endTimeStr,
           goingCount: m.players_rsvped,
           isChallenge,
-          challengerTeam,
+          opponentTeam,
           originalData: m,
         };
 
@@ -314,8 +350,12 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
                   endTime={match.endTime}
                   goingCount={match.goingCount}
                   isChallenge={match.isChallenge}
-                  challengerTeam={match.challengerTeam}
-                  onPress={() => navigation.navigate('TeamMatchInfo', { match: match.originalData })}
+                  opponentTeamName={match.opponentTeam}
+                  onPress={() => navigation.navigate('TeamMatchInfo', {
+                    match: match.originalData,
+                    team: routeTeam,
+                    opponentTeamName: match.opponentTeam, // pre-resolved: always the non-current team
+                  })}
                 />
               ))
             )}

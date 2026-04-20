@@ -22,9 +22,9 @@ interface MatchCellCardProps {
 
 const getSlotColor = (slotsLeft: number, totalSlots: number): string => {
   const ratio = slotsLeft / totalSlots;
-  if (ratio >= 0.75) return '#34C759'; // First 25% filled (75%-100% left) => Green
-  if (ratio <= 0.25) return '#FF3B30'; // Last 25% left => Red
-  return '#FFD60A'; // Middle (25% to 75% left) => Yellow
+  if (ratio >= 0.75) return '#34C759';
+  if (ratio <= 0.25) return '#FF3B30';
+  return '#FFD60A';
 };
 
 const getTimeIcon = (startTime: string): 'sunny' | 'moon' => {
@@ -35,20 +35,16 @@ const getTimeIcon = (startTime: string): 'sunny' | 'moon' => {
 };
 
 const getDisplayDate = (dateStr: string): string => {
-  // dateStr is in "dd/mm/yy" format
   const parts = dateStr.split('/');
   if (parts.length !== 3) return dateStr;
-
   const day = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+  const month = parseInt(parts[1], 10) - 1;
   const year = 2000 + parseInt(parts[2], 10);
   const matchDate = new Date(year, month, day);
-
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-
   if (matchDate.getTime() === today.getTime()) return 'Today';
   if (matchDate.getTime() === tomorrow.getTime()) return 'Tomorrow';
   return dateStr;
@@ -127,6 +123,7 @@ export default function MatchCellCard({
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
       <View style={styles.card}>
+
         {/* Venue */}
         <View style={styles.venueRow}>
           <Text style={{ fontSize: 18 }}>📍</Text>
@@ -156,6 +153,7 @@ export default function MatchCellCard({
           </View>
           <Text style={styles.goingText}>{goingCount} / {totalSlots} going</Text>
         </View>
+
       </View>
     </TouchableOpacity>
   );

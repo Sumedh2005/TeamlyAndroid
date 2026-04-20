@@ -46,7 +46,7 @@ export default function NewSportSkillScreen({ navigation, route }: any) {
 
   const handleNextOrSave = async () => {
     // Record current selection
-    const updatedSkills = { 
+    const updatedSkills: Record<string, string> = { 
       ...skillLevelsForSports, 
       [currentSport.name]: SKILLS[selectedSkillIndex] 
     };
