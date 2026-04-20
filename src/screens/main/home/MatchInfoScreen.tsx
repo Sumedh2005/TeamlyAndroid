@@ -231,8 +231,8 @@ export default function MatchInfoScreen({ navigation, route }: any) {
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 20,
-      paddingTop: 8,
-      paddingBottom: 8,
+      paddingTop: 14,
+      paddingBottom: 20,
     },
     backButton: {
       width: 40,
@@ -241,8 +241,6 @@ export default function MatchInfoScreen({ navigation, route }: any) {
       backgroundColor: colors.backgroundSecondary,
       justifyContent: 'center',
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.backgroundTertiary,
     },
     moreButton: {
       width: 40,
@@ -251,16 +249,13 @@ export default function MatchInfoScreen({ navigation, route }: any) {
       backgroundColor: colors.backgroundSecondary,
       justifyContent: 'center',
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.backgroundTertiary,
     },
     title: {
-      fontSize: 35,
+      fontSize: 22,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
-      paddingHorizontal: 20,
-      marginBottom: 15,
-      marginTop: 10,
+      flex: 1,
+      textAlign: 'center',
     },
     venueName: {
       fontSize: 24,
@@ -356,19 +351,18 @@ export default function MatchInfoScreen({ navigation, route }: any) {
     playerCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      height: 60,
+      minHeight: 56,
     },
     avatarCircle: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       backgroundColor: colors.backgroundTertiary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     playerName: {
-      flex: 1,
-      fontSize: 18,
+      fontSize: 16,
       fontFamily: FontFamily.semiBold,
       color: colors.textPrimary,
       marginLeft: 12,
@@ -418,6 +412,7 @@ export default function MatchInfoScreen({ navigation, route }: any) {
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
           </TouchableOpacity>
+          <Text style={styles.title}>Match Info</Text>
           <TouchableOpacity style={styles.moreButton} onPress={handleMenuPress}>
             <Ionicons name="ellipsis-horizontal" size={20} color={colors.systemGreen} />
           </TouchableOpacity>
@@ -429,8 +424,6 @@ export default function MatchInfoScreen({ navigation, route }: any) {
           </View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Title */}
-            <Text style={styles.title}>Match Info</Text>
             
             {/* Venue */}
             <View style={{height: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 15}}>
@@ -484,7 +477,7 @@ export default function MatchInfoScreen({ navigation, route }: any) {
                 <View style={styles.avatarCircle}>
                   <Ionicons name="person" size={25} color={colors.textTertiary} />
                 </View>
-                <TouchableOpacity style={{flex: 1}} onPress={() => !isHost && navigateToProfile(match.postedByUserId)}>
+                <TouchableOpacity style={{flex: 1, justifyContent: 'center'}} onPress={() => !isHost && navigateToProfile(match.postedByUserId)}>
                   <Text style={styles.playerName}>{isHost ? 'You' : (hostProfile?.name || match.postedByName)}</Text>
                 </TouchableOpacity>
                 {!isHost && isHostFriend && (
@@ -506,7 +499,7 @@ export default function MatchInfoScreen({ navigation, route }: any) {
                     <View style={styles.avatarCircle}>
                       <Ionicons name="person" size={25} color={colors.textTertiary} />
                     </View>
-                    <TouchableOpacity style={{flex: 1}} onPress={() => navigateToProfile(player.userId)}>
+                    <TouchableOpacity style={{flex: 1, justifyContent: 'center'}} onPress={() => navigateToProfile(player.userId)}>
                       <Text style={styles.playerName}>{player.userId === currentUserId ? 'You' : player.name}</Text>
                     </TouchableOpacity>
                     {player.userId !== currentUserId && player.isFriend && (

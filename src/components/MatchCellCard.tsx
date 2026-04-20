@@ -34,6 +34,26 @@ const getTimeIcon = (startTime: string): 'sunny' | 'moon' => {
   return hour24 >= 6 && hour24 < 17 ? 'sunny' : 'moon';
 };
 
+const getDisplayDate = (dateStr: string): string => {
+  // dateStr is in "dd/mm/yy" format
+  const parts = dateStr.split('/');
+  if (parts.length !== 3) return dateStr;
+
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+  const year = 2000 + parseInt(parts[2], 10);
+  const matchDate = new Date(year, month, day);
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  if (matchDate.getTime() === today.getTime()) return 'Today';
+  if (matchDate.getTime() === tomorrow.getTime()) return 'Tomorrow';
+  return dateStr;
+};
+
 export default function MatchCellCard({
   venue,
   date,
@@ -47,11 +67,12 @@ export default function MatchCellCard({
   const colors = useColors();
   const slotColor = getSlotColor(slotsLeft, totalSlots);
   const timeIcon = getTimeIcon(startTime);
+  const displayDate = getDisplayDate(date);
 
   const styles = StyleSheet.create({
     card: {
       backgroundColor: colors.backgroundSecondary,
-      borderRadius: 25,
+      borderRadius: 33,
       padding: 16,
       marginBottom: 12,
     },
@@ -116,7 +137,7 @@ export default function MatchCellCard({
         <View style={styles.infoRow}>
           <View style={styles.infoLeft}>
             <Ionicons name="calendar-outline" size={18} color={colors.textPrimary} />
-            <Text style={styles.infoText}>{date}</Text>
+            <Text style={styles.infoText}>{displayDate}</Text>
           </View>
           <View style={[styles.slotBadge, { backgroundColor: slotColor }]}>
             <Text style={styles.slotText}>{slotsLeft} slots left</Text>
@@ -127,9 +148,9 @@ export default function MatchCellCard({
         <View style={styles.infoRow}>
           <View style={styles.infoLeft}>
             <Ionicons
-              name={timeIcon === 'sunny' ? 'sunny-outline' : 'moon-outline'}
+              name={timeIcon === 'sunny' ? 'sunny' : 'moon'}
               size={18}
-              color={colors.textPrimary}
+              color={timeIcon === 'sunny' ? '#FFB800' : '#4A90D9'}
             />
             <Text style={styles.infoText}>{startTime} - {endTime}</Text>
           </View>
