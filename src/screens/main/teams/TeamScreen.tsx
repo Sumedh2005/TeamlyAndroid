@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,40 +6,119 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { supabase } from '../../../lib/supabase';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize, LineHeight } from '../../../theme/fonts';
 import CreateTeamSheet, { CreatedTeam } from './CreateTeamSheet';
 
-const TEAMS = [
-  { id: '1', name: 'Kick Off FC', sport: 'football', emoji: '⚽' },
-  { id: '2', name: 'Super FC', sport: 'football', emoji: '⚽' },
-  { id: '3', name: 'Bask FC', sport: 'basketball', emoji: '🏀' },
-  { id: '4', name: 'AllStars FC', sport: 'football', emoji: '⚽' },
-  { id: '5', name: 'Thunder FC', sport: 'basketball', emoji: '🏀' },
-];
+interface SportData {
+  id: number;
+  name: string;
+  emoji: string;
+}
+
+interface TeamWithSport {
+  id: string;
+  name: string;
+  sport_id: number;
+  college_id: number | null;
+  captain_id: string;
+  created_at: string;
+  sports?: SportData | SportData[];
+}
 
 export default function TeamScreen({ navigation }: any) {
   const colors = useColors();
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  
+  const [teams, setTeams] = useState<TeamWithSport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const filtered = TEAMS.filter(t =>
+  useFocusEffect(
+    useCallback(() => {
+      loadUserTeams();
+    }, [])
+  );
+
+  const loadUserTeams = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setTeams([]);
+        setLoading(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      setCurrentUserId(userId);
+      
+      const { data: memberships } = await supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', userId);
+      
+      if (!memberships || memberships.length === 0) {
+        setTeams([]);
+        setLoading(false);
+        return;
+      }
+      
+      const teamIds = memberships.map(m => m.team_id);
+      
+      const { data: teamsData, error } = await supabase
+        .from('teams')
+        .select(`
+          id,
+          name,
+          sport_id,
+          college_id,
+          captain_id,
+          created_at,
+          sports:sport_id (
+            id,
+            name,
+            emoji
+          )
+        `)
+        .in('id', teamIds);
+        
+      if (error) {
+        console.error('Error fetching teams data:', error);
+      } else if (teamsData) {
+        setTeams(teamsData as any);
+      }
+    } catch (err) {
+      console.error('Exception fetching teams', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filtered = teams.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const handleTeamPress = (team: typeof TEAMS[0]) => {
+  const handleTeamPress = (team: TeamWithSport) => {
+    const sportName = Array.isArray(team.sports) ? team.sports[0]?.name : (team.sports?.name || 'Unknown');
+    const sportEmoji = Array.isArray(team.sports) ? team.sports[0]?.emoji : (team.sports?.emoji || '🏅');
+
     navigation.navigate('TeamChat', {
       teamId: team.id,
       team: {
         id: team.id,
         name: team.name,
-        sport: team.sport,
-        emoji: team.emoji,
-        isCaptain: team.id === '1',
-        members: [],
+        sport: sportName,
+        emoji: sportEmoji,
+        isCaptain: team.captain_id === currentUserId,
+        members: [], 
       },
     });
   };
@@ -108,6 +187,19 @@ export default function TeamScreen({ navigation }: any) {
       lineHeight: LineHeight.lg,
       color: colors.textPrimary,
     },
+    centerState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: -100,
+    },
+    emptyText: {
+      fontSize: 18,
+      fontFamily: FontFamily.medium,
+      color: colors.textTertiary,
+      textAlign: 'center',
+      marginTop: 20,
+    }
   });
 
   return (
@@ -137,24 +229,42 @@ export default function TeamScreen({ navigation }: any) {
           />
         </View>
 
-        {/* Team List */}
-        <FlatList
-          data={filtered}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.teamItem}
-              activeOpacity={0.7}
-              onPress={() => handleTeamPress(item)}
-            >
-              <Text style={styles.teamEmoji}>{item.emoji}</Text>
-              <Text style={styles.teamName}>{item.name}</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-            </TouchableOpacity>
-          )}
-        />
+        {/* Content */}
+        {loading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator size="large" color={colors.textPrimary} />
+          </View>
+        ) : teams.length === 0 ? (
+          <View style={styles.centerState}>
+            <Ionicons name="shield-half-outline" size={80} color={colors.textTertiary} />
+            <Text style={styles.emptyText}>Not in a team yet{'\n'}Create your own</Text>
+          </View>
+        ) : search.length > 0 && filtered.length === 0 ? (
+          <View style={styles.centerState}>
+            <Text style={styles.emptyText}>This team doesn't exist</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const sportEmoji = Array.isArray(item.sports) ? item.sports[0]?.emoji : (item.sports?.emoji || '🏅');
+              return (
+                <TouchableOpacity
+                  style={styles.teamItem}
+                  activeOpacity={0.7}
+                  onPress={() => handleTeamPress(item)}
+                >
+                  <Text style={styles.teamEmoji}>{sportEmoji}</Text>
+                  <Text style={styles.teamName}>{item.name}</Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+                </TouchableOpacity>
+              )
+            }}
+          />
+        )}
 
       </View>
 
@@ -163,6 +273,7 @@ export default function TeamScreen({ navigation }: any) {
         onClose={() => setShowCreate(false)}
         onCreated={(_team: CreatedTeam) => {
           setShowCreate(false);
+          loadUserTeams();
         }}
       />
     </SafeAreaView>

@@ -1,23 +1,241 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import EditTeamInfoScreen from './EditTeamInfoScreen';
+import { supabase } from '../../../lib/supabase';
 
-const MOCK_PLAYERS = ['Raaghav', 'Rashmika', 'Dhruva'];
+interface Profile {
+  id: string;
+  name: string | null;
+  profile_pic: string | null;
+}
 
-export default function TeamInfoScreen({ navigation }: any) {
+interface TeamMember {
+  id: string;
+  user_id: string;
+  role: string;
+}
+
+interface TeamMemberWithProfile {
+  teamMember: TeamMember;
+  profile: Profile;
+  isCurrentUser: boolean;
+  isCaptain: boolean;
+}
+
+export default function TeamInfoScreen({ route, navigation }: any) {
   const colors = useColors();
+  const { team: initialTeam, teamId: initialTeamId } = route.params || {};
+
+  const [team, setTeam] = useState(initialTeam);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberWithProfile[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showEdit, setShowEdit] = useState(false);
-  const [teamNameState, setTeamNameState] = useState('AllStarsFC');
+
+  const isCurrentUserCaptain = team?.captain_id === currentUserId;
+
+  const activeTeamId = initialTeam?.id || initialTeamId;
+
+  useEffect(() => {
+    loadData();
+  }, [activeTeamId]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      setCurrentUserId(session.user.id);
+
+      if (!activeTeamId) return;
+
+      const { data: teamData } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('id', activeTeamId)
+        .single();
+        
+      if (teamData) {
+        setTeam(teamData);
+      }
+
+      const { data: membersData } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('team_id', activeTeamId);
+
+      if (!membersData) {
+        setTeamMembers([]);
+        return;
+      }
+
+      const userIds = membersData.map((m: any) => m.user_id);
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds);
+
+      const combined: TeamMemberWithProfile[] = [];
+      for (const member of membersData) {
+        const profile = profilesData?.find((p: any) => p.id === member.user_id);
+        if (profile) {
+          combined.push({
+            teamMember: member,
+            profile,
+            isCurrentUser: member.user_id === session.user.id,
+            isCaptain: member.role === 'captain' || (teamData && member.user_id === teamData.captain_id),
+          });
+        }
+      }
+      setTeamMembers(combined);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditSave = (updatedTeamName: string) => {
+    setTeam({ ...team, name: updatedTeamName });
+    setShowEdit(false);
+    // Real save is simulated here, but since EditTeamInfoScreen has its own update, just refresh data
+    loadData();
+  };
+
+  const removePlayer = (member: TeamMemberWithProfile) => {
+    Alert.alert(
+      'Remove Player',
+      `Do you want to remove ${member.profile.name || 'Unknown'} from the team?`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase
+                .from('team_members')
+                .delete()
+                .eq('id', member.teamMember.id);
+              loadData();
+            } catch (err) {
+              console.error(err);
+              Alert.alert('Error', 'Failed to remove player.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const deleteTeam = () => {
+    Alert.alert(
+      'Delete Team',
+      'Are you sure you want to delete this team? This action cannot be undone and will remove all team members.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (!team?.id) return;
+              
+              // Fetch matches
+              const { data: matches } = await supabase
+                .from('matches')
+                .select('id')
+                .or(`team_id.eq.${team.id},opponent_team_id.eq.${team.id}`);
+                
+              if (matches && matches.length > 0) {
+                const matchIds = matches.map((m: any) => m.id);
+                await supabase.from('match_rsvps').delete().in('match_id', matchIds);
+                await supabase.from('match_requests').delete().in('match_id', matchIds);
+                await supabase.from('matches').delete().in('id', matchIds);
+              }
+              
+              await supabase
+                .from('match_requests')
+                .delete()
+                .or(`challenging_team_id.eq.${team.id},challenged_team_id.eq.${team.id}`);
+                
+              await supabase.from('team_members').delete().eq('team_id', team.id);
+              await supabase.from('teams').delete().eq('id', team.id);
+              
+              navigation.popToTop();
+            } catch (err) {
+              console.error(err);
+              Alert.alert('Error', 'Failed to delete team.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const leaveTeam = () => {
+    Alert.alert(
+      'Leave Team',
+      'Do you want to leave this team?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const currentUserMember = teamMembers.find(m => m.isCurrentUser);
+              if (!currentUserMember) return;
+              
+              await supabase
+                .from('team_members')
+                .delete()
+                .eq('id', currentUserMember.teamMember.id);
+                
+              navigation.popToTop();
+            } catch (err) {
+              console.error(err);
+              Alert.alert('Error', 'Failed to leave team.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Section logic
+  const captainMember = teamMembers.find(m => m.isCaptain);
+  
+  let captainList: TeamMemberWithProfile[] = [];
+  let playersList: TeamMemberWithProfile[] = [];
+
+  if (isCurrentUserCaptain) {
+    const me = teamMembers.find(m => m.isCurrentUser);
+    if (me) captainList.push(me);
+    playersList = teamMembers
+      .filter(m => !m.isCurrentUser)
+      .sort((a, b) => (a.profile.name || '').localeCompare(b.profile.name || ''));
+  } else {
+    if (captainMember) captainList.push(captainMember);
+    const others = teamMembers.filter(m => !m.isCaptain);
+    const me = others.find(m => m.isCurrentUser);
+    const theRest = others.filter(m => !m.isCurrentUser)
+      .sort((a, b) => (a.profile.name || '').localeCompare(b.profile.name || ''));
+    if (me) playersList.push(me);
+    playersList = [...playersList, ...theRest];
+  }
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.backgroundPrimary },
@@ -118,6 +336,12 @@ export default function TeamInfoScreen({ navigation }: any) {
       fontFamily: FontFamily.regular,
       color: colors.textPrimary,
     },
+    menuLabelRed: {
+      flex: 1,
+      fontSize: FontSize.md,
+      fontFamily: FontFamily.regular,
+      color: '#FF3B30',
+    },
     menuDivider: {
       height: 0.5,
       backgroundColor: colors.backgroundTertiary,
@@ -164,15 +388,63 @@ export default function TeamInfoScreen({ navigation }: any) {
       fontFamily: FontFamily.medium,
       color: colors.textPrimary,
     },
-    deleteButton: {
+    actionButtonWrapper: {
       width: 32,
       height: 32,
       borderRadius: 16,
-      backgroundColor: `${'#FF3B30'}22`,
       justifyContent: 'center',
       alignItems: 'center',
     },
   });
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.textPrimary} />
+      </View>
+    );
+  }
+
+  const renderPlayer = (member: TeamMemberWithProfile, isCaptainSection: boolean) => {
+    let showDelete = false;
+    let showLeave = false;
+
+    if (isCurrentUserCaptain && !isCaptainSection) {
+      showDelete = true;
+    }
+    if (!isCurrentUserCaptain && !isCaptainSection && member.isCurrentUser) {
+      showLeave = true;
+    }
+
+    return (
+      <View key={member.teamMember.id} style={styles.playerCard}>
+        <View style={[styles.playerAvatar, isCaptainSection && styles.captainAvatar]}>
+          <Ionicons name="person" size={22} color={isCaptainSection ? colors.backgroundPrimary : colors.textTertiary} />
+        </View>
+        <Text style={styles.playerName}>
+          {member.isCurrentUser ? 'You' : (member.profile.name || 'Unknown')}
+        </Text>
+        
+        {showDelete && (
+          <TouchableOpacity 
+            style={[styles.actionButtonWrapper, { backgroundColor: `${'#FF3B30'}22` }]} 
+            onPress={() => removePlayer(member)}
+          >
+            <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+          </TouchableOpacity>
+        )}
+        
+        {showLeave && (
+          <TouchableOpacity 
+            style={[styles.actionButtonWrapper, { backgroundColor: `${'#FF3B30'}22` }]} 
+            onPress={leaveTeam}
+          >
+            <Ionicons name="log-out-outline" size={16} color="#FF3B30" />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -185,9 +457,13 @@ export default function TeamInfoScreen({ navigation }: any) {
               <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Team Info</Text>
-            <TouchableOpacity style={styles.editButton} onPress={() => setShowEdit(true)}>
-              <Text style={styles.editText}>Edit</Text>
-            </TouchableOpacity>
+            {isCurrentUserCaptain ? (
+              <TouchableOpacity style={styles.editButton} onPress={() => setShowEdit(true)}>
+                <Text style={styles.editText}>Edit</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 60 }} />
+            )}
           </View>
 
           {/* Avatar + Name */}
@@ -195,71 +471,62 @@ export default function TeamInfoScreen({ navigation }: any) {
             <View style={styles.avatarCircle}>
               <Ionicons name="people-outline" size={52} color={colors.textTertiary} />
             </View>
-            <Text style={styles.teamName}>{teamNameState}</Text>
+            <Text style={styles.teamName}>{team?.name || 'Unknown Team'}</Text>
             <View style={styles.teamSubtitle}>
               <Text style={styles.teamSubtitleText}>Team</Text>
               <Text style={styles.dot}>•</Text>
-              <Text style={styles.playersCount}>4 players</Text>
+              <Text style={styles.playersCount}>{teamMembers.length} players</Text>
             </View>
           </View>
 
           {/* Menu Card */}
           <View style={styles.menuCard}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('AddPlayers')}>
-  <View style={styles.menuIcon}>
-    <Ionicons name="person-add-outline" size={22} color={colors.textPrimary} />
-  </View>
-  <Text style={styles.menuLabel}>Add players</Text>
-  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-</TouchableOpacity>
+            {isCurrentUserCaptain && (
+              <>
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('AddPlayers', { team })}>
+                  <View style={styles.menuIcon}>
+                    <Ionicons name="person-add-outline" size={22} color={colors.textPrimary} />
+                  </View>
+                  <Text style={styles.menuLabel}>Add players</Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                </TouchableOpacity>
+                <View style={styles.menuDivider} />
+              </>
+            )}
 
-            <View style={styles.menuDivider} />
-
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('TeamMatches')}>
-  <View style={styles.menuIcon}>
-    <Ionicons name="grid-outline" size={22} color={colors.textPrimary} />
-  </View>
-  <Text style={styles.menuLabel}>Matches</Text>
-  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-</TouchableOpacity>
-
-            <View style={styles.menuDivider} />
-
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('TeamMatches', { team })}>
               <View style={styles.menuIcon}>
-                <Ionicons name="trash-outline" size={22} color={colors.textPrimary} />
+                <Ionicons name="grid-outline" size={22} color={colors.textPrimary} />
               </View>
-              <Text style={styles.menuLabel}>Delete Team</Text>
+              <Text style={styles.menuLabel}>Matches</Text>
               <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </TouchableOpacity>
+
+            {isCurrentUserCaptain && (
+              <>
+                <View style={styles.menuDivider} />
+                <TouchableOpacity style={styles.menuItem} onPress={deleteTeam}>
+                  <View style={styles.menuIcon}>
+                    <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                  </View>
+                  <Text style={styles.menuLabelRed}>Delete Team</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#FF3B30" />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
           <View style={styles.divider} />
 
           {/* Captain */}
           <Text style={styles.sectionTitle}>Captain</Text>
-          <View style={styles.playerCard}>
-            <View style={[styles.playerAvatar, styles.captainAvatar]}>
-              <Ionicons name="person" size={22} color={colors.backgroundPrimary} />
-            </View>
-            <Text style={styles.playerName}>You</Text>
-          </View>
+          {captainList.map(member => renderPlayer(member, true))}
 
           <View style={[styles.divider, { marginTop: 12 }]} />
 
           {/* Players */}
           <Text style={[styles.sectionTitle, { marginTop: 8 }]}>Players</Text>
-          {MOCK_PLAYERS.map((player) => (
-            <View key={player} style={styles.playerCard}>
-              <View style={styles.playerAvatar}>
-                <Ionicons name="person-outline" size={22} color={colors.textTertiary} />
-              </View>
-              <Text style={styles.playerName}>{player}</Text>
-              <TouchableOpacity style={styles.deleteButton}>
-                <Ionicons name="trash-outline" size={16} color="#FF3B30" />
-              </TouchableOpacity>
-            </View>
-          ))}
+          {playersList.map(member => renderPlayer(member, false))}
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -267,8 +534,8 @@ export default function TeamInfoScreen({ navigation }: any) {
         <EditTeamInfoScreen
           visible={showEdit}
           onClose={() => setShowEdit(false)}
-          teamName={teamNameState}
-          onSave={(name) => setTeamNameState(name)}
+          teamName={team?.name || ''}
+          onSave={handleEditSave}
         />
       </SafeAreaView>
     </View>

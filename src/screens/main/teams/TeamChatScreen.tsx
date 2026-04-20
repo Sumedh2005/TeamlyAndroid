@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,11 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../../lib/supabase';
 import { useColors } from '../../../theme/colors';
 import ChallengeTeamScreen from './ChallengeTeamScreen';
 import MatchRequestScreen from './MatchRequestScreen';
@@ -23,39 +25,163 @@ interface Message {
   isOwn?: boolean;
 }
 
-const MOCK_MESSAGES: Message[] = [
-  { id: '1', text: 'Supp team!!', userName: 'Sumedh', timestamp: '8:41 AM', isOwn: true },
-  { id: '2', text: 'Great match yesterday', userName: 'Sumedh', timestamp: '9:03 AM', isOwn: true },
-  { id: '3', text: 'Hi team', userName: 'Sumedh', timestamp: '11:28 AM', isOwn: true },
-  { id: '4', text: 'Yeah lets play tomorrow', userName: 'Rashmika', timestamp: '4:36 PM' },
-  { id: '5', text: 'Is everyone free', userName: 'Rashmika', timestamp: '4:36 PM' },
-  { id: '6', text: 'Sure Thing', userName: 'Sumedh', timestamp: '4:37 PM', isOwn: true },
-  { id: '7', text: 'Satyajit are you free tom?', userName: 'Sumedh', timestamp: '4:37 PM', isOwn: true },
-];
-
-export default function TeamChatScreen({ navigation }: any) {
+export default function TeamChatScreen({ route, navigation }: any) {
   const colors = useColors();
+  const { teamId, team } = route.params || {};
+
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [showChallenge, setShowChallenge] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
 
-  const isCaptain = true;
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
+  const senderCache = useRef<Record<string, { name: string }>>({});
+  const lastMessageTimestamp = useRef<string>(new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+  const flatListRef = useRef<FlatList>(null);
 
-  const handleSendMessage = () => {
-    if (!message.trim()) return;
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: message,
-      userName: 'Sumedh',
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      isOwn: true,
+  const isCaptain = team?.isCaptain ?? false;
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    const initializeChat = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const userId = session.user.id;
+      setCurrentUserId(userId);
+      
+      await fetchBlockedUserIds(userId);
+      await fetchInitialMessages(userId);
+      
+      intervalId = setInterval(() => {
+        pollMessages(userId);
+      }, 3000);
     };
-    setMessages([...messages, newMessage]);
-    setMessage('');
+
+    initializeChat();
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [teamId]);
+
+  const fetchBlockedUserIds = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('blocked')
+        .select('blocked_user')
+        .eq('blocked_by_user', userId);
+      if (data) setBlockedUsers(new Set(data.map(d => d.blocked_user)));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchSenderProfiles = async (userIds: string[]) => {
+    if (userIds.length === 0) return;
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', userIds);
+      if (data) {
+        data.forEach(profile => {
+          senderCache.current[profile.id] = { name: profile.name || 'Unknown' };
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    const d = new Date(dateString);
+    let h = d.getHours();
+    const m = d.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m < 10 ? '0' + m : m} ${ampm}`;
+  };
+
+  const buildUIMessages = (msgsData: any[], userId: string) => {
+    return msgsData
+      .filter(m => !blockedUsers.has(m.user_id))
+      .map(m => ({
+        id: m.id,
+        text: m.message,
+        userName: senderCache.current[m.user_id]?.name || 'Unknown',
+        timestamp: formatTime(m.created_at),
+        isOwn: m.user_id === userId,
+      }));
+  };
+
+  const fetchInitialMessages = async (userId: string) => {
+    if (!teamId) return;
+    try {
+      const { data, error } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('team_id', teamId)
+        .order('created_at', { ascending: true })
+        .limit(50);
+      if (error) throw error;
+      if (!data || data.length === 0) return;
+
+      lastMessageTimestamp.current = data[data.length - 1].created_at;
+      const uniqueIds = [...new Set(data.map(m => m.user_id))];
+      await fetchSenderProfiles(uniqueIds);
+      
+      setMessages(buildUIMessages(data, userId));
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
+    } catch (error) {
+      console.error('Initial fetch Error:', error);
+    }
+  };
+
+  const pollMessages = async (userId: string) => {
+    if (!teamId) return;
+    try {
+      const { data, error } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('team_id', teamId)
+        .gt('created_at', lastMessageTimestamp.current)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      if (!data || data.length === 0) return;
+
+      lastMessageTimestamp.current = data[data.length - 1].created_at;
+      const uniqueIds = [...new Set(data.map(m => m.user_id))];
+      const uncached = uniqueIds.filter(id => !senderCache.current[id]);
+      if (uncached.length > 0) await fetchSenderProfiles(uncached);
+
+      const newUiMsgs = buildUIMessages(data, userId);
+      if (newUiMsgs.length > 0) {
+        setMessages(prev => [...prev, ...newUiMsgs]);
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
+      }
+    } catch (err) {
+      console.error('Polling Error:', err);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    const textMsg = message.trim();
+    if (!textMsg || !teamId || !currentUserId) return;
+
+    setMessage(''); // optimistic clear
+    try {
+      const { error } = await supabase
+        .from('chats')
+        .insert({ team_id: teamId, user_id: currentUserId, message: textMsg });
+      if (error) {
+        Alert.alert('Error', 'Failed to send message.');
+        console.error(error);
+      }
+    } catch (err) {
+      console.error('Send Error:', err);
+    }
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -77,41 +203,33 @@ export default function TeamChatScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation?.goBack()}>
           <Ionicons name="chevron-back" size={28} color={colors.systemGreen} />
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate('TeamInfo')}>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>AllStarsFC</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('TeamInfo', { teamId })}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>{team?.name || 'Team Chat'}</Text>
         </TouchableOpacity>
-
         <View style={{ width: 28 }} />
       </View>
 
-      {/* CHAT */}
       <FlatList
+        ref={flatListRef}
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={renderMessage}
         contentContainerStyle={{ paddingVertical: 10 }}
       />
 
-      {/* INPUT */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.inputWrapper}>
-
-          {/* Left Icon - Team Matches */}
           <TouchableOpacity
             style={styles.leftIcon}
-            onPress={() => navigation.navigate('TeamMatches')}
+            onPress={() => navigation.navigate('TeamMatches', { teamId })}
           >
             <Ionicons name="football-outline" size={20} color="#000" />
           </TouchableOpacity>
 
-          {/* Input */}
           <TextInput
             style={styles.input}
             placeholder="Message here"
@@ -120,7 +238,6 @@ export default function TeamChatScreen({ navigation }: any) {
             placeholderTextColor="#8e8e93"
           />
 
-          {/* Send */}
           <TouchableOpacity style={styles.iconBtn} onPress={handleSendMessage}>
             <Ionicons
               name="send"
@@ -129,22 +246,12 @@ export default function TeamChatScreen({ navigation }: any) {
             />
           </TouchableOpacity>
 
-          {/* Captain Actions */}
           {isCaptain && (
             <>
-              {/* Challenge */}
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => setShowChallenge(true)}
-              >
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setShowChallenge(true)}>
                 <Ionicons name="flag-outline" size={20} color="#000" />
               </TouchableOpacity>
-
-              {/* Match Requests */}
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => setShowRequests(true)}
-              >
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setShowRequests(true)}>
                 <Ionicons name="document-outline" size={20} color="#000" />
               </TouchableOpacity>
             </>
@@ -152,18 +259,8 @@ export default function TeamChatScreen({ navigation }: any) {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Challenge Modal */}
-      <ChallengeTeamScreen
-        visible={showChallenge}
-        onClose={() => setShowChallenge(false)}
-      />
-
-      {/* Match Requests Modal */}
-      <MatchRequestScreen
-        visible={showRequests}
-        onClose={() => setShowRequests(false)}
-      />
-
+      <ChallengeTeamScreen visible={showChallenge} onClose={() => setShowChallenge(false)} />
+      <MatchRequestScreen visible={showRequests} onClose={() => setShowRequests(false)} />
     </SafeAreaView>
   );
 }

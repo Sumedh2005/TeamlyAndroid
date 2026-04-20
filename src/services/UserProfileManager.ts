@@ -109,7 +109,7 @@ class UserProfileManager {
         .select('*')
         .eq('blocked_by_user', currentUserId)
         .eq('blocked_user', targetUserId);
-      const isBlocked = blockedData && blockedData.length > 0;
+      const isBlocked = !!(blockedData && blockedData.length > 0);
 
       // Check if target user blocked current user
       const { data: blockedByData } = await supabase
@@ -117,7 +117,7 @@ class UserProfileManager {
         .select('*')
         .eq('blocked_by_user', targetUserId)
         .eq('blocked_user', currentUserId);
-      const isBlockedByUser = blockedByData && blockedByData.length > 0;
+      const isBlockedByUser = !!(blockedByData && blockedByData.length > 0);
 
       return { isBlocked, isBlockedByUser };
     } catch (error) {
@@ -138,7 +138,7 @@ class UserProfileManager {
         .select('*')
         .or(`and(user_id.eq.${currentUserId},friend_id.eq.${targetUserId},status.eq.accepted),and(user_id.eq.${targetUserId},friend_id.eq.${currentUserId},status.eq.accepted)`);
       
-      const isFriend = accepted && accepted.length > 0;
+      const isFriend = !!(accepted && accepted.length > 0);
 
       // Check outgoing
       const { data: outgoing } = await supabase
@@ -148,7 +148,7 @@ class UserProfileManager {
         .eq('friend_id', targetUserId)
         .eq('status', 'pending');
       
-      const hasOutgoingRequest = outgoing && outgoing.length > 0;
+      const hasOutgoingRequest = !!(outgoing && outgoing.length > 0);
 
       // Check incoming
       const { data: incoming } = await supabase
@@ -158,7 +158,7 @@ class UserProfileManager {
         .eq('friend_id', currentUserId)
         .eq('status', 'pending');
       
-      const hasIncomingRequest = incoming && incoming.length > 0;
+      const hasIncomingRequest = !!(incoming && incoming.length > 0);
 
       return { isFriend, hasOutgoingRequest, hasIncomingRequest };
     } catch (error) {
