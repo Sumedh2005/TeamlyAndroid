@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,7 +50,7 @@ const formatEndTime = (timeString: Date): string => {
 
 export default function HomeScreen({ navigation }: any) {
   const colors = useColors();
-  
+
   // State
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [userCollege, setUserCollege] = useState<College | null>(null);
@@ -57,13 +58,15 @@ export default function HomeScreen({ navigation }: any) {
   const [preferredSports, setPreferredSports] = useState<Sport[]>([]);
   const [preferredSportsMatches, setPreferredSportsMatches] = useState<Record<string, DBMatch[]>>({});
   const [selectedSportId, setSelectedSportId] = useState<number>(0);
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showPost, setShowPost] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
+
+  const sportsScrollRef = useRef<ScrollView>(null);
 
   const fetchData = async () => {
     try {
@@ -72,22 +75,22 @@ export default function HomeScreen({ navigation }: any) {
         setLoading(false);
         return;
       }
-      
+
       const userId = session.user.id;
       setCurrentUserId(userId);
-      
+
       const userProfile = await HomeManager.fetchUserProfile(userId);
       if (!userProfile) {
         setLoading(false);
         return;
       }
-      
+
       const college = await HomeManager.fetchCollege(userProfile.college_id);
       if (college) setUserCollege(college);
-      
+
       const allSports = await HomeManager.fetchAllSports();
       const preferredSportsData = await HomeManager.fetchUserPreferredSports(userId);
-      
+
       const userPreferredSports: Sport[] = [];
       const preferredSportIds = new Set<number>();
       for (const pref of preferredSportsData) {
@@ -98,18 +101,18 @@ export default function HomeScreen({ navigation }: any) {
         }
       }
       setPreferredSports(userPreferredSports);
-      
+
       const sortedSports = [...allSports].sort((sport1, sport2) => {
         const isSport1Pref = preferredSportIds.has(sport1.id);
         const isSport2Pref = preferredSportIds.has(sport2.id);
-        
+
         if (isSport1Pref && !isSport2Pref) return -1;
         if (!isSport1Pref && isSport2Pref) return 1;
         return sport1.id - sport2.id;
       });
-      
+
       setSports(sortedSports);
-      
+
       const initialSport = userPreferredSports.length > 0 ? userPreferredSports[0] : sortedSports[0];
       if (initialSport) {
         setSelectedSportId(initialSport.id);
@@ -120,10 +123,10 @@ export default function HomeScreen({ navigation }: any) {
         );
         setPreferredSportsMatches(prev => ({ ...prev, [initialSport.name]: dbMatches }));
       }
-      
+
       await checkForUpcomingMatches(userId);
       setLoading(false);
-      
+
     } catch (error) {
       console.error('Error fetching home data:', error);
       setLoading(false);
@@ -164,19 +167,19 @@ export default function HomeScreen({ navigation }: any) {
 
   const showReminderForMatch = (match: DBMatch) => {
     const now = new Date();
-    
+
     // Parse match date and time exactly like swift logic
     const matchDateStr = match.matchDate.toISOString().split('T')[0];
     const matchTimeStr = match.matchTime.toISOString().split('T')[1];
     const matchDateTime = new Date(`${matchDateStr}T${matchTimeStr}`);
-    
+
     const timeDiffMs = matchDateTime.getTime() - now.getTime();
     const hoursUntilMatch = Math.floor(timeDiffMs / (1000 * 60 * 60));
     const minutesUntilMatch = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60));
 
     const timeFormatted = formatTime(match.matchTime);
     let message = '';
-    
+
     if (hoursUntilMatch === 0) {
       if (minutesUntilMatch <= 5) {
         message = `Reminder - Starting now! Your ${match.sportName} match at ${timeFormatted} is about to begin!`;
@@ -192,9 +195,16 @@ export default function HomeScreen({ navigation }: any) {
     setReminderMessage(message);
   };
 
-  const onSportSelect = async (sport: Sport) => {
+  const SPORT_ITEM_WIDTH = 88; // 76 button + 12 margin
+
+  const onSportSelect = async (sport: Sport, index: number) => {
     setSelectedSportId(sport.id);
-    
+
+    // Auto-scroll so the tapped sport centers on screen
+    const screenWidth = Dimensions.get('window').width;
+    const targetX = 20 + index * SPORT_ITEM_WIDTH + 38 - screenWidth / 2;
+    sportsScrollRef.current?.scrollTo({ x: Math.max(0, targetX), animated: true });
+
     if (preferredSportsMatches[sport.name]) {
       // Refresh RSVP counts
       const matches = [...preferredSportsMatches[sport.name]];
@@ -276,8 +286,8 @@ export default function HomeScreen({ navigation }: any) {
       marginBottom: 20,
       borderRadius: 28,
       borderWidth: 1.5,
-      borderColor: 'rgba(255, 59, 48, 0.6)', 
-      backgroundColor: 'rgba(255, 240, 243, 1)', 
+      borderColor: 'rgba(255, 59, 48, 0.6)',
+      backgroundColor: 'rgba(255, 240, 243, 1)',
       paddingVertical: 16,
       paddingHorizontal: 20,
       flexDirection: 'row',
@@ -317,16 +327,16 @@ export default function HomeScreen({ navigation }: any) {
       marginBottom: 30,
     },
     sportButton: {
-      width: 64,
-      height: 64,
-      borderRadius: 18,
+      width: 76,
+      height: 76,
+      borderRadius: 22,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
       borderWidth: 1,
     },
     sportEmoji: {
-      fontSize: 32,
+      fontSize: 36,
     },
     sectionRow: {
       flexDirection: 'row',
@@ -394,8 +404,8 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* Search */}
-        <TouchableOpacity 
-          style={styles.searchBar} 
+        <TouchableOpacity
+          style={styles.searchBar}
           activeOpacity={0.8}
           onPress={() => navigation.navigate('Search')}
         >
@@ -411,14 +421,14 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={[styles.reminderText, isDarkMode && styles.reminderTextDark]}>
               {reminderMessage}
             </Text>
-            <TouchableOpacity 
-              style={[styles.closeButton, isDarkMode && styles.closeButtonDark]} 
+            <TouchableOpacity
+              style={[styles.closeButton, isDarkMode && styles.closeButtonDark]}
               onPress={() => setReminderMessage(null)}
             >
-              <Ionicons 
-                name="close" 
-                size={14} 
-                color={isDarkMode ? 'white' : 'rgba(140, 20, 30, 1)'} 
+              <Ionicons
+                name="close"
+                size={14}
+                color={isDarkMode ? 'white' : 'rgba(140, 20, 30, 1)'}
               />
             </TouchableOpacity>
           </View>
@@ -427,11 +437,12 @@ export default function HomeScreen({ navigation }: any) {
         {/* Sports Filter */}
         <View>
           <ScrollView
+            ref={sportsScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.sportsScroll}
           >
-            {sports.map((sport) => {
+            {sports.map((sport, index) => {
               const isSelected = selectedSportId === sport.id;
               return (
                 <TouchableOpacity
@@ -440,14 +451,14 @@ export default function HomeScreen({ navigation }: any) {
                     styles.sportButton,
                     {
                       backgroundColor: isSelected
-                          ? `${colors.systemGreen}15`
-                          : colors.backgroundSecondary,
+                        ? `${colors.systemGreen}15`
+                        : colors.backgroundSecondary,
                       borderColor: isSelected
-                          ? colors.systemGreen
-                          : 'transparent',
+                        ? colors.systemGreen
+                        : 'transparent',
                     },
                   ]}
-                  onPress={() => onSportSelect(sport)}
+                  onPress={() => onSportSelect(sport, index)}
                 >
                   <Text style={styles.sportEmoji}>{sport.emoji}</Text>
                 </TouchableOpacity>
@@ -495,13 +506,13 @@ export default function HomeScreen({ navigation }: any) {
                 slotsLeft={match.playersNeeded - match.playersRSVPed}
                 totalSlots={match.playersNeeded}
                 goingCount={match.playersRSVPed}
-                onPress={() => navigation.navigate('MatchInfo', { 
-                  match: { 
-                    ...match, 
-                    matchDate: match.matchDate.toISOString(), 
-                    matchTime: match.matchTime.toISOString(), 
-                    createdAt: match.createdAt.toISOString() 
-                  } 
+                onPress={() => navigation.navigate('MatchInfo', {
+                  match: {
+                    ...match,
+                    matchDate: match.matchDate.toISOString(),
+                    matchTime: match.matchTime.toISOString(),
+                    createdAt: match.createdAt.toISOString()
+                  }
                 })}
               />
             ))

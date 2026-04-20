@@ -45,7 +45,7 @@ const getDates = (count: number = 30): DateItem[] => {
   for (let i = 0; i < count; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    
+
     const dayNumber = d.getDate().toString().padStart(2, '0');
     // For label
     let label = '';
@@ -57,7 +57,7 @@ const getDates = (count: number = 30): DateItem[] => {
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
     const dbDate = `${yyyy}-${mm}-${dd}`;
-    
+
     // For fullDate (display format e.g. dd/MM/yy)
     const yy = d.getFullYear().toString().slice(-2);
     const fullDate = `${dd}/${mm}/${yy}`;
@@ -108,7 +108,7 @@ export default function MatchesScreen({ navigation, route }: any) {
 
   const [dates] = useState<DateItem[]>(getDates());
   const [selectedDateIndex, setSelectedDateIndex] = useState(0);
-  
+
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [userCollegeId, setUserCollegeId] = useState<number>(0);
   const [filteredMatches, setFilteredMatches] = useState<DBMatch[]>([]);
@@ -119,7 +119,7 @@ export default function MatchesScreen({ navigation, route }: any) {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [isFillingFastEnabled, setIsFillingFastEnabled] = useState(false);
-  
+
   const [showPost, setShowPost] = useState(false);
 
   useEffect(() => {
@@ -154,22 +154,22 @@ export default function MatchesScreen({ navigation, route }: any) {
         setLoading(false);
         return;
       }
-      
+
       const userId = session.user.id;
       setCurrentUserId(userId);
-      
+
       const userProfile = await HomeManager.fetchUserProfile(userId);
       if (!userProfile) {
         setLoading(false);
         return;
       }
-      
+
       setUserCollegeId(userProfile.college_id);
-      
+
       // Will be triggered by the use effect dependency naturally if college id changes, 
       // but let's call it manually just in case
       await loadMatchesForSelectedDate(userId, userProfile.college_id);
-      
+
     } catch (error) {
       console.error('Error fetching user data', error);
       setLoading(false);
@@ -178,7 +178,7 @@ export default function MatchesScreen({ navigation, route }: any) {
 
   const loadMatchesForSelectedDate = async (uid = currentUserId, cid = userCollegeId) => {
     if (!uid || !cid) return;
-    
+
     setLoading(true);
     const selectedDate = dates[selectedDateIndex];
 
@@ -223,13 +223,13 @@ export default function MatchesScreen({ navigation, route }: any) {
         dbMatches = dbMatches.filter(match => {
           const hour = match.matchTime.getUTCHours();
           const isNightTime = hour >= 17 || hour < 6;
-          
+
           if (selectedTimes.includes('day') && selectedTimes.includes('night')) {
-             return true;
+            return true;
           } else if (selectedTimes.includes('day')) {
-             return !isNightTime;
+            return !isNightTime;
           } else if (selectedTimes.includes('night')) {
-             return isNightTime;
+            return isNightTime;
           }
           return false;
         });
@@ -258,8 +258,8 @@ export default function MatchesScreen({ navigation, route }: any) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 16,
-      paddingTop: 8,
-      paddingBottom: 12,
+      paddingTop: 14,
+      paddingBottom: 20,
     },
     backButton: {
       width: 40,
@@ -268,7 +268,6 @@ export default function MatchesScreen({ navigation, route }: any) {
       backgroundColor: colors.backgroundSecondary,
       justifyContent: 'center',
       alignItems: 'center',
-      borderWidth: 1,
       borderColor: colors.backgroundTertiary,
     },
     headerRight: {
@@ -282,19 +281,18 @@ export default function MatchesScreen({ navigation, route }: any) {
       backgroundColor: colors.backgroundSecondary,
       justifyContent: 'center',
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.backgroundTertiary,
+     borderColor: colors.backgroundTertiary,
     },
     title: {
-      fontSize: 28,
+      fontSize: 22,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
-      paddingHorizontal: 20,
-      marginBottom: 16,
+      flex: 1,
+      textAlign: 'center',
     },
     dateStrip: {
       paddingLeft: 20,
-      marginBottom: 16,
+      marginBottom: 28,
     },
     dateItem: {
       width: 60,
@@ -336,48 +334,42 @@ export default function MatchesScreen({ navigation, route }: any) {
       backgroundColor: 'rgba(0,0,0,0.5)',
     },
     filterSheet: {
-      backgroundColor: colors.backgroundSecondary,
+      backgroundColor: colors.backgroundPrimary,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       height: '70%',
     },
-    filterHeader: {
+    filterBottomButtons: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      height: 60,
+      gap: 16,
+      marginTop: 32,
+      marginBottom: 48,
     },
     filterClearButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 6,
-      borderRadius: 17,
-      borderWidth: 1,
-      borderColor: colors.textTertiary,
-      backgroundColor: `${colors.backgroundPrimary}80`,
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+      borderRadius: 50,
+      backgroundColor: colors.backgroundSecondary,
     },
     filterApplyButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 6,
-      borderRadius: 17,
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+      borderRadius: 50,
       backgroundColor: colors.systemGreen,
     },
     filterButtonText: {
       fontSize: 15,
       fontFamily: FontFamily.semiBold,
     },
-    filterTitle: {
-      fontSize: 20,
-      fontFamily: FontFamily.semiBold,
-      color: colors.textPrimary,
-    },
     filterContent: {
       paddingHorizontal: 24,
-      paddingTop: 24,
+      paddingTop: 16,
     },
     filterSectionTitle: {
       fontSize: 18,
-      fontFamily: FontFamily.semiBold,
+      fontFamily: FontFamily.medium,
       color: colors.textPrimary,
       marginBottom: 16,
     },
@@ -392,7 +384,7 @@ export default function MatchesScreen({ navigation, route }: any) {
       borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: colors.backgroundTertiary,
+      backgroundColor: colors.backgroundSecondary,
       flexDirection: 'row',
       gap: 6,
     },
@@ -405,7 +397,7 @@ export default function MatchesScreen({ navigation, route }: any) {
       height: 1,
       backgroundColor: colors.textTertiary,
       opacity: 0.2,
-      marginVertical: 30,
+      marginVertical: 16,
     },
     filterHandle: {
       width: 40,
@@ -419,7 +411,7 @@ export default function MatchesScreen({ navigation, route }: any) {
   });
 
   const getSkillColor = (skill: string) => {
-    switch(skill) {
+    switch (skill) {
       case 'beginner': return 'rgba(90, 200, 250, 0.7)'; // teal
       case 'intermediate': return 'rgba(255, 204, 0, 0.7)'; // yellow
       case 'experienced': return 'rgba(255, 149, 0, 0.7)'; // orange
@@ -432,20 +424,21 @@ export default function MatchesScreen({ navigation, route }: any) {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
 
-        {/* Buttons (Fixed) */}
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
           </TouchableOpacity>
+          <Text style={styles.title} numberOfLines={1}>{sportLabel}</Text>
           <View style={styles.headerRight}>
-            <TouchableOpacity 
-              style={styles.iconButton} 
+            <TouchableOpacity
+              style={styles.iconButton}
               onPress={() => setShowFilter(true)}
             >
-              <Ionicons 
-                name={hasActiveFilters ? "options" : "options-outline"} 
-                size={20} 
-                color={colors.systemGreen} 
+              <Ionicons
+                name={hasActiveFilters ? "options" : "options-outline"}
+                size={20}
+                color={colors.systemGreen}
               />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} onPress={() => setShowPost(true)}>
@@ -455,8 +448,6 @@ export default function MatchesScreen({ navigation, route }: any) {
         </View>
 
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-          {/* Title */}
-          <Text style={styles.title}>{sportLabel}</Text>
 
           {/* Date Strip */}
           <ScrollView
@@ -527,13 +518,13 @@ export default function MatchesScreen({ navigation, route }: any) {
                   slotsLeft={match.playersNeeded - match.playersRSVPed}
                   totalSlots={match.playersNeeded}
                   goingCount={match.playersRSVPed}
-                  onPress={() => navigation.navigate('MatchInfo', { 
-                    match: { 
-                      ...match, 
-                      matchDate: match.matchDate.toISOString(), 
-                      matchTime: match.matchTime.toISOString(), 
-                      createdAt: match.createdAt.toISOString() 
-                    } 
+                  onPress={() => navigation.navigate('MatchInfo', {
+                    match: {
+                      ...match,
+                      matchDate: match.matchDate.toISOString(),
+                      matchTime: match.matchTime.toISOString(),
+                      createdAt: match.createdAt.toISOString()
+                    }
                   })}
                 />
               ))
@@ -558,109 +549,107 @@ export default function MatchesScreen({ navigation, route }: any) {
             <View style={styles.filterOverlay}>
               <TouchableWithoutFeedback>
                 <View style={styles.filterSheet}>
-                   <View style={styles.filterHandle} />
-                   
-                   <View style={styles.filterHeader}>
-                     <TouchableOpacity style={styles.filterClearButton} onPress={clearAllFilters}>
-                       <Text style={[styles.filterButtonText, {color: colors.textPrimary}]}>Clear</Text>
-                     </TouchableOpacity>
-                     
-                     <Text style={styles.filterTitle}>Filters</Text>
-                     
-                     <TouchableOpacity style={styles.filterApplyButton} onPress={() => setShowFilter(false)}>
-                       <Text style={[styles.filterButtonText, {color: 'white'}]}>Apply</Text>
-                     </TouchableOpacity>
-                   </View>
+                  <View style={styles.filterHandle} />
 
-                   <ScrollView style={styles.filterContent} showsVerticalScrollIndicator={false}>
-                     
-                     {/* Skill */}
-                     <Text style={styles.filterSectionTitle}>Skill Level</Text>
-                     <View style={styles.filterRow}>
-                       {['beginner', 'intermediate'].map((skill) => {
-                         const isSelected = selectedSkills.includes(skill);
-                         return (
-                           <TouchableOpacity
-                             key={skill}
-                             style={[
-                               styles.filterChip,
-                               { backgroundColor: isSelected ? getSkillColor(skill) : colors.backgroundTertiary }
-                             ]}
-                             onPress={() => toggleItem(skill, selectedSkills, setSelectedSkills)}
-                           >
-                             <Text style={[styles.filterChipText, {color: isSelected ? 'white' : colors.textPrimary}]}>
-                               {skill.charAt(0).toUpperCase() + skill.slice(1)}
-                             </Text>
-                           </TouchableOpacity>
-                         )
-                       })}
-                     </View>
-                     <View style={styles.filterRow}>
-                       {['experienced', 'advanced'].map((skill) => {
-                         const isSelected = selectedSkills.includes(skill);
-                         return (
-                           <TouchableOpacity
-                             key={skill}
-                             style={[
-                               styles.filterChip,
-                               { backgroundColor: isSelected ? getSkillColor(skill) : colors.backgroundTertiary }
-                             ]}
-                             onPress={() => toggleItem(skill, selectedSkills, setSelectedSkills)}
-                           >
-                             <Text style={[styles.filterChipText, {color: isSelected ? 'white' : colors.textPrimary}]}>
-                               {skill.charAt(0).toUpperCase() + skill.slice(1)}
-                             </Text>
-                           </TouchableOpacity>
-                         )
-                       })}
-                     </View>
-                     
-                     <View style={styles.separator} />
+                  <ScrollView style={styles.filterContent} showsVerticalScrollIndicator={false}>
 
-                     {/* Time */}
-                     <Text style={styles.filterSectionTitle}>Time</Text>
-                     <View style={styles.filterRow}>
-                       {['day', 'night'].map((time) => {
-                         const isSelected = selectedTimes.includes(time);
-                         const isDay = time === 'day';
-                         return (
-                           <TouchableOpacity
-                             key={time}
-                             style={[
-                               styles.filterChip,
-                               { backgroundColor: isSelected ? 'white' : colors.backgroundTertiary }
-                             ]}
-                             onPress={() => toggleItem(time, selectedTimes, setSelectedTimes)}
-                           >
-                             <Ionicons name={isDay ? 'sunny' : 'moon'} size={16} color={isSelected ? (isDay ? 'orange' : 'blue') : 'gray'} />
-                             <Text style={[styles.filterChipText, {color: isSelected ? 'black' : colors.textPrimary}]}>
-                               {time.charAt(0).toUpperCase() + time.slice(1)}
-                             </Text>
-                           </TouchableOpacity>
-                         )
-                       })}
-                     </View>
+                    {/* Skill */}
+                    <Text style={styles.filterSectionTitle}>Skill Level</Text>
+                    <View style={styles.filterRow}>
+                      {['beginner', 'intermediate'].map((skill) => {
+                        const isSelected = selectedSkills.includes(skill);
+                        return (
+                          <TouchableOpacity
+                            key={skill}
+                            style={[
+                              styles.filterChip,
+                              { backgroundColor: isSelected ? getSkillColor(skill) : colors.backgroundTertiary }
+                            ]}
+                            onPress={() => toggleItem(skill, selectedSkills, setSelectedSkills)}
+                          >
+                            <Text style={[styles.filterChipText, { color: isSelected ? 'white' : colors.textPrimary }]}>
+                              {skill.charAt(0).toUpperCase() + skill.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                    <View style={styles.filterRow}>
+                      {['experienced', 'advanced'].map((skill) => {
+                        const isSelected = selectedSkills.includes(skill);
+                        return (
+                          <TouchableOpacity
+                            key={skill}
+                            style={[
+                              styles.filterChip,
+                              { backgroundColor: isSelected ? getSkillColor(skill) : colors.backgroundTertiary }
+                            ]}
+                            onPress={() => toggleItem(skill, selectedSkills, setSelectedSkills)}
+                          >
+                            <Text style={[styles.filterChipText, { color: isSelected ? 'white' : colors.textPrimary }]}>
+                              {skill.charAt(0).toUpperCase() + skill.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
 
-                     <View style={styles.separator} />
+                    <View style={styles.separator} />
 
-                     {/* Availability */}
-                     <Text style={styles.filterSectionTitle}>Availability</Text>
-                     <View style={styles.filterRow}>
-                        <TouchableOpacity
-                          style={[
-                            styles.filterChip,
-                            { backgroundColor: isFillingFastEnabled ? 'white' : colors.backgroundTertiary, flex: 0.5 }
-                          ]}
-                          onPress={toggleFillingFast}
-                        >
-                          <Ionicons name="trending-up" size={16} color={isFillingFastEnabled || !isFillingFastEnabled ? 'red' : 'red'} />
-                          <Text style={[styles.filterChipText, {color: isFillingFastEnabled ? 'black' : colors.textPrimary}]}>
-                            Filling fast
-                          </Text>
-                        </TouchableOpacity>
-                     </View>
+                    {/* Time */}
+                    <Text style={styles.filterSectionTitle}>Time</Text>
+                    <View style={styles.filterRow}>
+                      {['day', 'night'].map((time) => {
+                        const isSelected = selectedTimes.includes(time);
+                        const isDay = time === 'day';
+                        return (
+                          <TouchableOpacity
+                            key={time}
+                            style={[
+                              styles.filterChip,
+                              { backgroundColor: isSelected ? 'white' : colors.backgroundTertiary }
+                            ]}
+                            onPress={() => toggleItem(time, selectedTimes, setSelectedTimes)}
+                          >
+                            <Ionicons name={isDay ? 'sunny' : 'moon'} size={16} color={isSelected ? (isDay ? 'orange' : 'blue') : 'gray'} />
+                            <Text style={[styles.filterChipText, { color: isSelected ? 'black' : colors.textPrimary }]}>
+                              {time.charAt(0).toUpperCase() + time.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
 
-                   </ScrollView>
+                    <View style={styles.separator} />
+
+                    {/* Availability */}
+                    <Text style={styles.filterSectionTitle}>Availability</Text>
+                    <View style={styles.filterRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.filterChip,
+                          { backgroundColor: isFillingFastEnabled ? 'white' : colors.backgroundTertiary, flex: 0.5 }
+                        ]}
+                        onPress={toggleFillingFast}
+                      >
+                        <Ionicons name="trending-up" size={16} color={isFillingFastEnabled || !isFillingFastEnabled ? 'red' : 'red'} />
+                        <Text style={[styles.filterChipText, { color: isFillingFastEnabled ? 'black' : colors.textPrimary }]}>
+                          Filling fast
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Clear & Apply Buttons */}
+                    <View style={styles.filterBottomButtons}>
+                      <TouchableOpacity style={styles.filterClearButton} onPress={clearAllFilters}>
+                        <Text style={[styles.filterButtonText, { color: colors.textPrimary }]}>Clear</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.filterApplyButton} onPress={() => setShowFilter(false)}>
+                        <Text style={[styles.filterButtonText, { color: 'white' }]}>Apply</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                  </ScrollView>
                 </View>
               </TouchableWithoutFeedback>
             </View>
