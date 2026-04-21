@@ -11,6 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useColors } from '../../../theme/colors';
@@ -388,6 +389,18 @@ export default function HomeScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Green tint gradient at top */}
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
       <SafeAreaView style={styles.safeArea}>
 
         {/* Header */}
@@ -469,6 +482,7 @@ export default function HomeScreen({ navigation }: any) {
 
         {/* Match Cards */}
         <ScrollView
+          style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           refreshControl={

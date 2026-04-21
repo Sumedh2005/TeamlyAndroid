@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   type TextInput as TextInputType,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import { supabase } from '../../../lib/supabase';
@@ -200,6 +201,19 @@ export default function CollegeVerificationStep2Screen({ navigation, route }: an
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+
+      {/* Green tint gradient at top */}
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
 
         <Text style={styles.title}>Enter OTP</Text>
 

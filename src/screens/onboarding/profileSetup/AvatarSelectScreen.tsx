@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import AuthManager from '../../../lib/AuthManager';
@@ -176,9 +177,11 @@ export default function AvatarSelectScreen({ navigation }: any) {
       height: 52,
       paddingHorizontal: 48,
       borderRadius: 50,
-      backgroundColor: isLoading
-        ? colors.systemGreen + '80'
-        : colors.systemGreen,
+      backgroundColor: !image
+        ? colors.backgroundTertiary
+        : isLoading
+          ? colors.systemGreen + '80'
+          : colors.systemGreen,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -249,6 +252,19 @@ export default function AvatarSelectScreen({ navigation }: any) {
     <View style={styles.container}>
       <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
 
+      {/* Green tint gradient at top */}
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
+
       <View style={styles.progressBarContainer}>
         <View style={styles.progressBar} />
       </View>
@@ -284,13 +300,14 @@ export default function AvatarSelectScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.nextButton}
           onPress={handleNext}
-          disabled={isLoading}
+          disabled={!image || isLoading}
         >
           {isLoading
             ? <ActivityIndicator color={colors.primaryWhite} />
-            : <Text style={styles.nextButtonText}>
-                <Text>Next</Text>
-              </Text>
+            : <Text style={[
+                styles.nextButtonText,
+                { color: !image ? colors.textTertiary : colors.primaryWhite },
+              ]}>Next</Text>
           }
         </TouchableOpacity>
       </View>

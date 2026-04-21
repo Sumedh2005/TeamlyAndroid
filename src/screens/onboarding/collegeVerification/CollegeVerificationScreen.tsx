@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import { supabase } from '../../../lib/supabase';
@@ -93,7 +94,7 @@ export default function CollegeVerificationScreen({ navigation, route }: any) {
     },
     collegeBadge: {
       alignSelf: 'center',
-      marginTop: 80,
+      marginTop: 160,
       marginBottom: 8,
       backgroundColor: colors.backgroundSecondary,
       borderRadius: 50,
@@ -114,7 +115,7 @@ export default function CollegeVerificationScreen({ navigation, route }: any) {
       textAlign: 'center',
     },
     formContainer: {
-      marginTop: 60,
+      marginTop: 24,
     },
     input: {
       height: 52,
@@ -154,6 +155,19 @@ export default function CollegeVerificationScreen({ navigation, route }: any) {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+
+      {/* Green tint gradient at top */}
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
 
         {college && (
           <View style={styles.collegeBadge}>

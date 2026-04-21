@@ -393,7 +393,10 @@ export default function NotificationsScreen({ navigation }: any) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-      <LinearGradient colors={gradientColors as any} style={styles.linearGradient} />
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={styles.linearGradient}
+      />
 
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.header}>
@@ -435,7 +438,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: 300,
+    height: 150,
   },
   header: {
     flexDirection: 'row',

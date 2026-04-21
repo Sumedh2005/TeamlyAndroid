@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
@@ -295,19 +296,19 @@ export default function MatchesScreen({ navigation, route }: any) {
       marginBottom: 28,
     },
     dateItem: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
+      width: 62,
+      height: 62,
+      borderRadius: 31,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 15,
     },
     dateNumber: {
-      fontSize: 20,
+      fontSize: 17,
       fontFamily: FontFamily.medium,
     },
     dateDay: {
-      fontSize: 11,
+      fontSize: 10,
       fontFamily: FontFamily.medium,
       marginTop: 3,
     },
@@ -422,6 +423,18 @@ export default function MatchesScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Green tint gradient at top */}
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
       <SafeAreaView style={styles.safeArea}>
 
         {/* Header */}

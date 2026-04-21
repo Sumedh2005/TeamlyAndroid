@@ -2,7 +2,9 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   StatusBar, PanResponder, ActivityIndicator, Alert,
+  Modal, ScrollView, TouchableWithoutFeedback,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import AuthManager from '../../../lib/AuthManager';
@@ -26,6 +28,25 @@ const SPORT_EMOJIS: Record<string, string> = {
   tennis:      '🎾',
 };
 
+const SKILL_INFO = [
+  {
+    label: 'Beginner',
+    description: "You're new to the sport or have limited experience. Focused on learning basic rules, techniques, and fundamentals.",
+  },
+  {
+    label: 'Intermediate',
+    description: 'You have a good understanding of the game and basic skills. Can participate comfortably in recreational play.',
+  },
+  {
+    label: 'Experienced',
+    description: 'Regular player with solid technical skills and game understanding. Comfortable with advanced techniques and strategies.',
+  },
+  {
+    label: 'Advanced',
+    description: 'Highly skilled player with extensive experience. Competes at high levels with advanced tactical understanding and consistent performance.',
+  },
+];
+
 const SLIDER_HEIGHT = 340;
 
 export default function SkillLevelScreen({ navigation, route }: any) {
@@ -35,6 +56,7 @@ export default function SkillLevelScreen({ navigation, route }: any) {
   const [sliderValue, setSliderValue] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [dragY, setDragY] = useState<number | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
 
   // Accumulates skill levels as user goes through each sport
   const skillLevelsRef = useRef<Record<string, string>>({});
@@ -224,11 +246,60 @@ export default function SkillLevelScreen({ navigation, route }: any) {
       fontFamily: FontFamily.semiBold,
       color: colors.primaryWhite,
     },
+    infoOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    infoSheet: {
+      backgroundColor: colors.backgroundSecondary,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      maxHeight: '92%',
+    },
+    infoHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.backgroundQuaternary,
+      alignSelf: 'center',
+      marginBottom: 24,
+    },
+    infoItem: {
+      marginBottom: 28,
+    },
+    infoLabel: {
+      fontSize: 22,
+      fontFamily: FontFamily.bold,
+      color: colors.systemGreen,
+      marginBottom: 8,
+    },
+    infoDescription: {
+      fontSize: FontSize.md,
+      fontFamily: FontFamily.regular,
+      color: colors.textPrimary,
+      lineHeight: 24,
+    },
   });
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+
+      {/* Green tint gradient at top */}
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
 
       <View style={styles.progressBarContainer}>
         <View style={styles.progressBar} />
@@ -236,7 +307,9 @@ export default function SkillLevelScreen({ navigation, route }: any) {
 
       <View style={styles.titleRow}>
         <Text style={styles.title}>Select your skill level</Text>
-        <Text style={{ fontSize: 18, color: colors.textTertiary }}>ⓘ</Text>
+        <TouchableOpacity onPress={() => setShowInfo(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={{ fontSize: 18, color: colors.textTertiary }}>ⓘ</Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.sportEmoji}>{SPORT_EMOJIS[currentSport]}</Text>
@@ -247,19 +320,24 @@ export default function SkillLevelScreen({ navigation, route }: any) {
             const levelIndex = SKILL_LEVELS.length - 1 - index;
             const isSelected = sliderValue === levelIndex;
             return (
-              <Text
+              <TouchableOpacity
                 key={level.label}
-                style={[
-                  styles.levelLabel,
-                  {
-                    color: isSelected ? currentSkill.color : colors.textTertiary,
-                    opacity: isSelected ? 1 : 0.4,
-                    fontSize: isSelected ? 28 : 24,
-                  },
-                ]}
+                onPress={() => setSliderValue(levelIndex)}
+                activeOpacity={0.7}
               >
-                {level.label}
-              </Text>
+                <Text
+                  style={[
+                    styles.levelLabel,
+                    {
+                      color: isSelected ? currentSkill.color : colors.textTertiary,
+                      opacity: isSelected ? 1 : 0.4,
+                      fontSize: isSelected ? 28 : 24,
+                    },
+                  ]}
+                >
+                  {level.label}
+                </Text>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -290,10 +368,37 @@ export default function SkillLevelScreen({ navigation, route }: any) {
         >
           {isLoading
             ? <ActivityIndicator color={colors.primaryWhite} />
-            : <Text style={styles.nextButtonText}>{isLast ? 'Finish' : 'Next'}</Text>
+            : <Text style={styles.nextButtonText}>{isLast ? 'Next' : 'Next'}</Text>
           }
         </TouchableOpacity>
       </View>
+
+      {/* Skill Info Modal */}
+      <Modal
+        visible={showInfo}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowInfo(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowInfo(false)}>
+          <View style={styles.infoOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.infoSheet}>
+                <View style={styles.infoHandle} />
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 }}>
+                  {SKILL_INFO.map((item) => (
+                    <View key={item.label} style={styles.infoItem}>
+                      <Text style={styles.infoLabel}>{item.label}</Text>
+                      <Text style={styles.infoDescription}>{item.description}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
     </View>
   );
 }

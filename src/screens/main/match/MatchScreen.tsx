@@ -9,6 +9,7 @@ import {
   FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import MatchCellCard from '../../../components/MatchCellCard';
@@ -199,13 +200,25 @@ export default function MatchScreen({ navigation }: any) {
     errorText: {
       fontSize: 16,
       fontFamily: FontFamily.medium,
-      color: colors.systemRed,
+      color: '#FF3B30',
       textAlign: 'center',
     }
   });
 
   return (
     <View style={styles.container}>
+      {/* Green tint gradient at top */}
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
       <SafeAreaView style={styles.safeArea}>
 
         {/* Header */}

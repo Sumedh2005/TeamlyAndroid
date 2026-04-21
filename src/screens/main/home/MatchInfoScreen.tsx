@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
@@ -406,6 +407,18 @@ export default function MatchInfoScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Green tint gradient at top */}
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
       <SafeAreaView style={styles.safeArea}>
       
         <View style={styles.header}>
@@ -462,7 +475,7 @@ export default function MatchInfoScreen({ navigation, route }: any) {
               <View style={styles.progressRow}>
                 <Ionicons name="people" size={23} color={colors.textTertiary} style={{marginLeft: -2.5}} />
                 <View style={styles.progressBarBg}>
-                  <View style={styles.progressBarFill} />
+                  <View style={[styles.progressBarFill, { width: `${filledRatio * 100}%` }]} />
                 </View>
                 <Text style={styles.progressText}>{match.playersRSVPed}/{match.playersNeeded}</Text>
               </View>
