@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator
+  ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import TeamMatchCellCard from '../../../components/TeamMatchCellCard';
@@ -29,6 +31,16 @@ interface MatchData {
 export default function TeamMatchesScreen({ navigation, route }: any) {
   const colors = useColors();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: activeTab === 'upcoming' ? 0 : 1,
+      useNativeDriver: false,
+      bounciness: 2,
+      speed: 12,
+    }).start();
+  }, [activeTab]);
   
   const [upcomingMatches, setUpcomingMatches] = useState<MatchData[]>([]);
   const [pastMatches, setPastMatches] = useState<MatchData[]>([]);
@@ -212,18 +224,18 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
     },
 
     segmentContainer: {
-      flexDirection: 'row',
-      backgroundColor: colors.backgroundSecondary,
-      borderRadius: 50,
-      padding: 4,
-    },
-    segmentButton: {
-      flex: 1,
-      height: 40,
-      borderRadius: 50,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
+  flexDirection: 'row',
+  backgroundColor: colors.backgroundSecondary,
+  borderRadius: 50,
+  padding: 3,   // ← was 4
+},
+segmentButton: {
+  flex: 1,
+  height: 32,   // ← was 40
+  borderRadius: 50,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
     segmentText: {
       fontSize: FontSize.sm,
       fontFamily: FontFamily.medium,
@@ -249,6 +261,17 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
       <SafeAreaView style={styles.safeArea}>
 
         {/* Header */}
@@ -260,15 +283,33 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
 
           {/* Segmented Control */}
           <View style={styles.segmentContainer}>
+            <View
+  style={{
+    position: 'absolute',
+    top: 3,     // ← was 4
+    bottom: 3,  // ← was 4
+    left: 3,    // ← was 4
+    right: 3,   // ← was 4
+  }}
+>
+  <Animated.View
+    style={{
+      width: '50%',
+      height: '100%',
+      backgroundColor: colors.textPrimary,  // ← was colors.backgroundPrimary
+      borderRadius: 50,
+      left: slideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0%', '50%'],
+      }),
+    }}
+  />
+</View>
+
             <TouchableOpacity
               style={[
                 styles.segmentButton,
-                {
-                  backgroundColor:
-                    activeTab === 'upcoming'
-                      ? colors.backgroundPrimary
-                      : 'transparent',
-                },
+                { backgroundColor: 'transparent' },
               ]}
               onPress={() => setActiveTab('upcoming')}
             >
@@ -278,8 +319,8 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
                   {
                     color:
                       activeTab === 'upcoming'
-                        ? colors.textPrimary
-                        : colors.textTertiary,
+                        ? colors.backgroundPrimary  // ← change from colors.textPrimary
+          : colors.textTertiary,
                     fontFamily:
                       activeTab === 'upcoming'
                         ? FontFamily.semiBold
@@ -294,12 +335,7 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
             <TouchableOpacity
               style={[
                 styles.segmentButton,
-                {
-                  backgroundColor:
-                    activeTab === 'past'
-                      ? colors.textPrimary
-                      : 'transparent',
-                },
+                { backgroundColor: 'transparent' },
               ]}
               onPress={() => setActiveTab('past')}
             >
@@ -309,8 +345,8 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
                   {
                     color:
                       activeTab === 'past'
-                        ? colors.backgroundPrimary
-                        : colors.textTertiary,
+                        ? colors.backgroundPrimary  // ← change from colors.textPrimary
+          : colors.textTertiary,
                     fontFamily:
                       activeTab === 'past'
                         ? FontFamily.semiBold

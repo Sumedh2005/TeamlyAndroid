@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../../lib/supabase';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize, LineHeight } from '../../../theme/fonts';
@@ -154,13 +155,13 @@ export default function TeamScreen({ navigation }: any) {
     searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      marginBottom: 20,
       backgroundColor: colors.backgroundSecondary,
+      borderRadius: 50,
+      paddingHorizontal: 16,
+      height: 48,
+      marginBottom: 20,
+      gap: 10,
     },
-    searchIcon: { fontSize: FontSize.md, marginRight: 8, color: colors.textTertiary },
     searchInput: {
       flex: 1,
       fontSize: FontSize.md,
@@ -204,6 +205,17 @@ export default function TeamScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
       <View style={styles.container}>
 
         {/* Header */}
@@ -219,7 +231,7 @@ export default function TeamScreen({ navigation }: any) {
 
         {/* Search */}
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search-outline" size={18} color={colors.textTertiary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search teams"

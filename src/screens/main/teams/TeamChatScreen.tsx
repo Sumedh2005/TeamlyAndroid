@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../../lib/supabase';
 import { useColors } from '../../../theme/colors';
 import ChallengeTeamScreen from './ChallengeTeamScreen';
@@ -203,6 +204,17 @@ export default function TeamChatScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation?.goBack()}>
           <Ionicons name="chevron-back" size={28} color={colors.systemGreen} />

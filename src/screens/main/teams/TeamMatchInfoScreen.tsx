@@ -483,17 +483,17 @@ export default function TeamMatchInfoScreen({ navigation, route }: any) {
   // -------- render --------
   return (
     <View style={s.container}>
-      {/* Green gradient tint at the top */}
       <LinearGradient
-        colors={
-          isDark
-            ? ['rgba(0,38,0,1)', 'transparent']
-            : ['rgba(53,199,89,0.3)', 'transparent']
-        }
-        style={StyleSheet.absoluteFillObject}
-        pointerEvents="none"
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
       />
-
       <SafeAreaView style={s.safeArea}>
         {/* Header */}
         <View style={s.headerRow}>

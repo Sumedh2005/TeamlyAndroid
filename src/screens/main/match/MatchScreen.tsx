@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   FlatList,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +21,17 @@ export default function MatchScreen({ navigation }: any) {
   const colors = useColors();
   
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: activeTab === 'upcoming' ? 0 : 1,
+      useNativeDriver: false,
+      bounciness: 2,
+      speed: 12,
+    }).start();
+  }, [activeTab]);
+
   const [upcomingMatches, setUpcomingMatches] = useState<DBMatch[]>([]);
   const [pastMatches, setPastMatches] = useState<DBMatch[]>([]);
   
@@ -165,11 +177,11 @@ export default function MatchScreen({ navigation }: any) {
       flexDirection: 'row',
       backgroundColor: colors.backgroundSecondary,
       borderRadius: 50,
-      padding: 4,
+      padding: 3,
     },
     segmentButton: {
       flex: 1,
-      height: 40,
+      height: 32,
       borderRadius: 50,
       justifyContent: 'center',
       alignItems: 'center',
@@ -227,15 +239,33 @@ export default function MatchScreen({ navigation }: any) {
 
           {/* Segmented Control */}
           <View style={styles.segmentContainer}>
+            <View
+              style={{
+                position: 'absolute',
+                top: 3,
+                bottom: 3,
+                left: 3,
+                right: 3,
+              }}
+            >
+              <Animated.View
+                style={{
+                  width: '50%',
+                  height: '100%',
+                  backgroundColor: colors.textPrimary,
+                  borderRadius: 50,
+                  left: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '50%'],
+                  }),
+                }}
+              />
+            </View>
+
             <TouchableOpacity
               style={[
                 styles.segmentButton,
-                {
-                  backgroundColor:
-                    activeTab === 'upcoming'
-                      ? colors.backgroundPrimary
-                      : 'transparent',
-                },
+                { backgroundColor: 'transparent' },
               ]}
               onPress={() => setActiveTab('upcoming')}
             >
@@ -245,7 +275,7 @@ export default function MatchScreen({ navigation }: any) {
                   {
                     color:
                       activeTab === 'upcoming'
-                        ? colors.textPrimary
+                        ? colors.backgroundPrimary
                         : colors.textTertiary,
                     fontFamily:
                       activeTab === 'upcoming'
@@ -261,12 +291,7 @@ export default function MatchScreen({ navigation }: any) {
             <TouchableOpacity
               style={[
                 styles.segmentButton,
-                {
-                  backgroundColor:
-                    activeTab === 'past'
-                      ? colors.textPrimary
-                      : 'transparent',
-                },
+                { backgroundColor: 'transparent' },
               ]}
               onPress={() => setActiveTab('past')}
             >

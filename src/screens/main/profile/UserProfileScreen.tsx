@@ -305,13 +305,13 @@ export default function UserProfileScreen({ navigation, route }: any) {
     },
     actionButton: {
       marginTop: 12,
-      height: 30,
-      borderRadius: 15,
+      height: 26,
+      borderRadius: 13,
       justifyContent: 'center',
       alignItems: 'center',
     },
     actionButtonText: {
-      fontSize: 15,
+      fontSize: 13,
       fontFamily: FontFamily.medium,
     },
     sectionTitle: {
