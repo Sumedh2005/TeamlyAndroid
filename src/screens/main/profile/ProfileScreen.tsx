@@ -126,6 +126,8 @@ export default function ProfileScreen({ navigation }: any) {
     },
     // Profile Identity Block
     identityContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
       marginTop: 16,
       paddingHorizontal: 16,
     },
@@ -144,11 +146,15 @@ export default function ProfileScreen({ navigation }: any) {
       width: '100%',
       height: '100%',
     },
+    infoWrapper: {
+      marginLeft: 18,
+      flex: 1,
+      justifyContent: 'center',
+    },
     nameLabel: {
-      fontSize: 35,
+      fontSize: 32,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
-      marginTop: 8,
     },
     ageLabel: {
       fontSize: 16,
@@ -277,13 +283,15 @@ export default function ProfileScreen({ navigation }: any) {
                     <Ionicons name="person" size={40} color={colors.textTertiary} />
                   )}
                 </View>
-                <Text style={styles.nameLabel}>{profile?.name || 'Loading...'}</Text>
-                <Text style={styles.ageLabel}>Age : {profile?.age ? profile.age : 'Not specified'}</Text>
-                <Text style={[styles.genderLabel, {
-                  color: profile?.gender === 'Male' ? '#007AFF' : profile?.gender === 'Female' ? '#FF2D55' : '#8E8E93'
-                }]}>
-                  {profile?.gender || 'Not specified'}
-                </Text>
+                <View style={styles.infoWrapper}>
+                  <Text style={styles.nameLabel}>{profile?.name || 'Loading...'}</Text>
+                  <Text style={styles.ageLabel}>Age : {profile?.age ? profile.age : 'Not specified'}</Text>
+                  <Text style={[styles.genderLabel, {
+                    color: profile?.gender === 'Male' ? '#007AFF' : profile?.gender === 'Female' ? '#FF2D55' : '#8E8E93'
+                  }]}>
+                    {profile?.gender || 'Not specified'}
+                  </Text>
+                </View>
               </View>
 
               {/* Teams Section */}
