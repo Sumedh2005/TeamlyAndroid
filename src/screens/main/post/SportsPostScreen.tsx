@@ -56,6 +56,8 @@ interface Props {
 
 export default function SportsPostScreen({ visible, onClose, sport }: Props) {
   const colors = useColors();
+  const sportKey = sport?.toLowerCase().replace(/\s+/g, '') ?? '';
+  
 
   const [venue, setVenue] = useState('');
   const [fromTime, setFromTime] = useState<Date | null>(null);
@@ -129,7 +131,7 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
       return;
     }
     
-    const sportId = SPORT_IDS[sport.toLowerCase()] || 1;
+    const sportId = SPORT_IDS[sportKey] || 1;
 
     try {
       setIsSubmitting(true);
@@ -206,7 +208,7 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
     sportDisplayText: {
       fontSize: FontSize.md,
       fontFamily: FontFamily.regular,
-      color: '#000000',
+      color: colors.textPrimary,
     },
 
     input: {
@@ -314,8 +316,8 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
 
                 {/* Sport - pre-selected, non-editable */}
                 <View style={styles.sportDisplay}>
-                  <Text style={{ fontSize: 20 }}>{SPORT_EMOJIS[sport]}</Text>
-                  <Text style={styles.sportDisplayText}>{SPORT_LABELS[sport]}</Text>
+                  <Text style={{ fontSize: 20 }}>{SPORT_EMOJIS[sportKey]}</Text>
+                  <Text style={styles.sportDisplayText}>{SPORT_LABELS[sportKey] ?? sport}</Text>
                 </View>
 
                 {/* Venue */}

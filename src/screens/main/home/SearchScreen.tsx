@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
-import { FontFamily } from '../../../theme/fonts';
+import { FontFamily, FontSize } from '../../../theme/fonts';
 import { supabase } from '../../../lib/supabase';
 
 // Local Types
@@ -155,16 +155,18 @@ export default function SearchScreen({ navigation }: any) {
       left: 0,
       right: 0,
       top: 0,
-      height: 300,
+      height: 150,
     },
     safeArea: {
       flex: 1,
     },
     headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       paddingHorizontal: 20,
       paddingTop: 8,
       paddingBottom: 8,
-      alignItems: 'flex-start',
+      gap: 12,
     },
     backButton: {
       width: 40,
@@ -177,24 +179,21 @@ export default function SearchScreen({ navigation }: any) {
       alignItems: 'center',
     },
     searchContainer: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: isDarkMode ? '#1C1C1E' : '#E5E5EA',
-      borderRadius: 10,
-      marginHorizontal: 12,
-      paddingHorizontal: 12,
-      height: 40, // standard ios search bar height
-      marginTop: 16,
-      marginBottom: 12,
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 50,
+      paddingHorizontal: 16,
+      height: 48,
+      gap: 10,
     },
-    searchIcon: {
-      marginRight: 6,
-    },
+    searchIcon: {},
     searchInput: {
       flex: 1,
-      height: '100%',
-      fontSize: 17,
-      color: isDarkMode ? '#FFFFFF' : '#000000',
+      fontSize: FontSize.md,
+      fontFamily: FontFamily.regular,
+      color: colors.textPrimary,
     },
     clearButton: {
       padding: 4,
@@ -236,38 +235,37 @@ export default function SearchScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={isDarkMode ? ['rgba(0, 38, 0, 1)', 'transparent'] : ['rgba(53, 199, 89, 0.3)', 'transparent']}
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
         style={styles.linearGradient}
       />
       <SafeAreaView style={styles.safeArea}>
         
-        {/* Top Back Button */}
+        {/* Header row: back button + search bar inline */}
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={18} color={isDarkMode ? '#34C759' : '#34C759'} />
+            <Ionicons name="chevron-back" size={18} color={colors.systemGreen} />
           </TouchableOpacity>
-        </View>
 
-        {/* Search Bar matching UISearchBar styling */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search players"
-            placeholderTextColor="#8E8E93"
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            autoFocus={true}
-            autoCorrect={false}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity 
-              style={styles.clearButton} 
-              onPress={() => handleSearchChange('')}
-            >
-              <Ionicons name="close-circle" size={16} color="#8E8E93" />
-            </TouchableOpacity>
-          )}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search-outline" size={18} color={colors.textTertiary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search players"
+              placeholderTextColor={colors.textTertiary}
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              autoFocus={true}
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => handleSearchChange('')}
+              >
+                <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Results */}

@@ -186,7 +186,7 @@ export default function SettingsScreen({ navigation, route }: any) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={isDarkMode ? ['rgba(0, 38, 0, 1)', 'transparent'] : ['rgba(53, 199, 89, 0.3)', 'transparent']}
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
         style={styles.linearGradient}
       />
       <SafeAreaView style={styles.safeArea}>
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    height: 300,
+    height: 150,
   },
   safeArea: {
     flex: 1,

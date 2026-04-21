@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import AuthManager from '../../../lib/AuthManager';
@@ -28,38 +29,38 @@ export default function NameAndDetailsScreen({ navigation }: any) {
   // ── Save Handler ─────────────────────────────────────────────────────────────
 
   const handleNext = async () => {
-  if (!isNextEnabled) return;
+    if (!isNextEnabled) return;
 
-  setIsLoading(true);
-  try {
-    // Try getUser first, fall back to getSession
-    let userId = await AuthManager.getCurrentUserId();
+    setIsLoading(true);
+    try {
+      // Try getUser first, fall back to getSession
+      let userId = await AuthManager.getCurrentUserId();
 
-    if (!userId) {
-      // Fallback: grab from session directly
-      const session = await AuthManager.getCurrentSession();
-      userId = session?.user?.id ?? null;
-    }
+      if (!userId) {
+        // Fallback: grab from session directly
+        const session = await AuthManager.getCurrentSession();
+        userId = session?.user?.id ?? null;
+      }
 
-    console.log('userId for save:', userId); // ← check this in your terminal
+      console.log('userId for save:', userId); // ← check this in your terminal
 
-    if (!userId) {
-      Alert.alert('Session Expired', 'Could not find your session. Please log in again.');
+      if (!userId) {
+        Alert.alert('Session Expired', 'Could not find your session. Please log in again.');
+        setIsLoading(false);
+        return;
+      }
+
+      await ProfileManager.saveNameAndGender(userId, name.trim(), gender!);
+      console.log('Saved successfully, navigating to Age');
+      navigation.navigate('Age');
+
+    } catch (error: any) {
+      console.error('handleNext error:', error);
+      Alert.alert('Error', error?.message ?? 'Failed to save. Please try again.');
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    await ProfileManager.saveNameAndGender(userId, name.trim(), gender!);
-    console.log('Saved successfully, navigating to Age');
-    navigation.navigate('Age');
-
-  } catch (error: any) {
-    console.error('handleNext error:', error);
-    Alert.alert('Error', error?.message ?? 'Failed to save. Please try again.');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   // ── Styles ───────────────────────────────────────────────────────────────────
 
@@ -107,7 +108,7 @@ export default function NameAndDetailsScreen({ navigation }: any) {
     genderContainer: {
       flexDirection: 'row',
       gap: 16,
-      
+
     },
     genderButton: {
       flex: 1,
@@ -116,11 +117,11 @@ export default function NameAndDetailsScreen({ navigation }: any) {
       justifyContent: 'center',
       alignItems: 'center',
       gap: 4,
-      
+
     },
     genderIcon: {
       fontSize: 80,
-      
+
     },
     genderLabel: {
       fontSize: FontSize.md,
@@ -150,6 +151,19 @@ export default function NameAndDetailsScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+
+      {/* Green tint gradient at top */}
+      <LinearGradient
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
+      />
 
       {/* Progress Bar */}
       <View style={styles.progressBarContainer}>
