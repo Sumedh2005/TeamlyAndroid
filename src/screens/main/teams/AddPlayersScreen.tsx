@@ -216,26 +216,19 @@ export default function AddPlayersScreen({ navigation, route }: any) {
 
     // Header
     header: {
+      flexDirection: 'row',
+      alignItems: 'center',
       paddingHorizontal: 20,
-      paddingTop: 8,
+      paddingTop: 12,
       paddingBottom: 16,
     },
-    glassBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 14,
+    backButton: {
+      marginRight: 10,
     },
     title: {
-      fontSize: 32,
+      fontSize: 22,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
-      marginBottom: 16,
     },
 
     // Search
@@ -350,12 +343,14 @@ export default function AddPlayersScreen({ navigation, route }: any) {
 
         {/* Header */}
         <View style={s.header}>
-          <TouchableOpacity style={s.glassBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
+          <TouchableOpacity style={s.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={24} color={colors.systemGreen} />
           </TouchableOpacity>
           <Text style={s.title}>Add Players</Text>
+        </View>
 
-          {/* Search */}
+        {/* Search */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 8 }}>
           <View style={s.searchBar}>
             <Ionicons name="search-outline" size={18} color={colors.textTertiary} />
             <TextInput
