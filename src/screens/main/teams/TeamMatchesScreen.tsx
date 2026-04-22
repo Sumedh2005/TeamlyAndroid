@@ -203,24 +203,19 @@ export default function TeamMatchesScreen({ navigation, route }: any) {
     safeArea: { flex: 1 },
 
     header: {
+      flexDirection: 'row',
+      alignItems: 'center',
       paddingHorizontal: 20,
-      paddingTop: 8,
+      paddingTop: 12,
       paddingBottom: 12,
     },
     backButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.backgroundSecondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 16,
+      marginRight: 10,
     },
     title: {
-      fontSize: 32,
+      fontSize: 22,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
-      marginBottom: 16,
     },
 
     segmentContainer: {
@@ -277,11 +272,13 @@ segmentButton: {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
+            <Ionicons name="chevron-back" size={24} color={colors.systemGreen} />
           </TouchableOpacity>
           <Text style={styles.title}>Matches</Text>
+        </View>
 
-          {/* Segmented Control */}
+        {/* Segmented Control */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 4 }}>
           <View style={styles.segmentContainer}>
             <View
   style={{

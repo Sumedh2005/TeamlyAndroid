@@ -244,21 +244,16 @@ export default function TeamInfoScreen({ route, navigation }: any) {
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingTop: 8,
+      paddingTop: 12,
       paddingBottom: 12,
     },
     backButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.backgroundSecondary,
-      justifyContent: 'center',
-      alignItems: 'center',
+      marginRight: 10,
     },
     headerTitle: {
-      fontSize: FontSize.lg,
+      flex: 1,
+      fontSize: 22,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
     },
@@ -381,7 +376,7 @@ export default function TeamInfoScreen({ route, navigation }: any) {
       alignItems: 'center',
     },
     captainAvatar: {
-      backgroundColor: colors.textPrimary,
+      backgroundColor: colors.backgroundTertiary,
     },
     playerName: {
       flex: 1,
@@ -420,7 +415,7 @@ export default function TeamInfoScreen({ route, navigation }: any) {
     return (
       <View key={member.teamMember.id} style={styles.playerCard}>
         <View style={[styles.playerAvatar, isCaptainSection && styles.captainAvatar]}>
-          <Ionicons name="person" size={22} color={isCaptainSection ? colors.backgroundPrimary : colors.textTertiary} />
+          <Ionicons name="person" size={22} color={colors.textTertiary} />
         </View>
         <Text style={styles.playerName}>
           {member.isCurrentUser ? 'You' : (member.profile.name || 'Unknown')}
@@ -466,9 +461,9 @@ export default function TeamInfoScreen({ route, navigation }: any) {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
+              <Ionicons name="chevron-back" size={24} color={colors.systemGreen} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Team Info</Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>Team Info</Text>
             {isCurrentUserCaptain ? (
               <TouchableOpacity style={styles.editButton} onPress={() => setShowEdit(true)}>
                 <Text style={styles.editText}>Edit</Text>

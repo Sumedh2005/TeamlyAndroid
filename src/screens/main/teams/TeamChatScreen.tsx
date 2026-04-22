@@ -192,7 +192,7 @@ export default function TeamChatScreen({ route, navigation }: any) {
         <View style={[styles.bubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
           <View style={styles.messageHeader}>
             {!isOwn && <Text style={styles.userName}>{item.userName}</Text>}
-            <Text style={styles.time}>{item.timestamp}</Text>
+            <Text style={[styles.time, isOwn && { color: 'rgba(255,255,255,0.85)' }]}>{item.timestamp}</Text>
           </View>
           <Text style={[styles.text, { color: isOwn ? '#fff' : '#000' }]}>
             {item.text}
@@ -203,77 +203,85 @@ export default function TeamChatScreen({ route, navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
-      <LinearGradient
-        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 150,
-          zIndex: 0,
-        }}
-      />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack()}>
-          <Ionicons name="chevron-back" size={28} color={colors.systemGreen} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('TeamInfo', { teamId })}>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>{team?.name || 'Team Chat'}</Text>
-        </TouchableOpacity>
-        <View style={{ width: 28 }} />
-      </View>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <LinearGradient
+          colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 150,
+            zIndex: 0,
+          }}
+        />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={24} color={colors.systemGreen} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('TeamInfo', { teamId })} style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>{team?.name || 'Team Chat'}</Text>
+          </TouchableOpacity>
+        </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={{ paddingVertical: 10 }}
-      />
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={{ paddingVertical: 10 }}
+          keyboardShouldPersistTaps="handled"
+          style={{ flex: 1 }}
+        />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.inputWrapper}>
+        <View style={styles.inputRow}>
+          {/* Matches circle */}
           <TouchableOpacity
-            style={styles.leftIcon}
+            style={styles.circleBtn}
             onPress={() => navigation.navigate('TeamMatches', { teamId, team })}
           >
-            <Ionicons name="football-outline" size={20} color="#000" />
+            <Ionicons name="football-outline" size={20} color="#34C759" />
           </TouchableOpacity>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Message here"
-            value={message}
-            onChangeText={setMessage}
-            placeholderTextColor="#8e8e93"
-          />
-
-          <TouchableOpacity style={styles.iconBtn} onPress={handleSendMessage}>
-            <Ionicons
-              name="send"
-              size={20}
-              color={message.trim() ? '#34C759' : '#8e8e93'}
+          {/* Text input bar */}
+          <View style={styles.inputBarWrap}>
+            <TextInput
+              style={styles.input}
+              placeholder="Message here"
+              value={message}
+              onChangeText={setMessage}
+              placeholderTextColor="#8e8e93"
             />
-          </TouchableOpacity>
+            <TouchableOpacity onPress={handleSendMessage} style={styles.sendBtn}>
+              <Ionicons
+                name="send"
+                size={18}
+                color={message.trim() ? '#34C759' : '#8e8e93'}
+              />
+            </TouchableOpacity>
+          </View>
 
+          {/* Captain-only action circles */}
           {isCaptain && (
             <>
-              <TouchableOpacity style={styles.iconBtn} onPress={() => setShowChallenge(true)}>
-                <Ionicons name="flag-outline" size={20} color="#000" />
+              <TouchableOpacity style={styles.circleBtn} onPress={() => setShowChallenge(true)}>
+                <Ionicons name="flag-outline" size={20} color="#34C759" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn} onPress={() => setShowRequests(true)}>
-                <Ionicons name="document-outline" size={20} color="#000" />
+              <TouchableOpacity style={styles.circleBtn} onPress={() => setShowRequests(true)}>
+                <Ionicons name="document-outline" size={20} color="#34C759" />
               </TouchableOpacity>
             </>
           )}
         </View>
-      </KeyboardAvoidingView>
 
-      <ChallengeTeamScreen visible={showChallenge} onClose={() => setShowChallenge(false)} team={team} teamId={teamId} />
-      <MatchRequestScreen visible={showRequests} onClose={() => setShowRequests(false)} team={team} teamId={teamId} />
-    </SafeAreaView>
+        <ChallengeTeamScreen visible={showChallenge} onClose={() => setShowChallenge(false)} team={team} teamId={teamId} />
+        <MatchRequestScreen visible={showRequests} onClose={() => setShowRequests(false)} team={team} teamId={teamId} />
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -282,14 +290,16 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'ios' ? 50 : 20,
     paddingBottom: 10,
   },
+  backBtn: {
+    marginRight: 8,
+  },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '600',
   },
   messageRow: {
     flexDirection: 'row',
@@ -326,30 +336,38 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
   },
-  inputWrapper: {
+  /* ── Bottom input row ── */
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 12,
-    backgroundColor: '#E5E5EA',
-    borderRadius: 30,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingBottom : 20,
+    gap: 8,
   },
-  leftIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#D1D1D6',
+  circleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f2f2f7',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+  },
+  inputBarWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E5E5EA',
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
   input: {
     flex: 1,
     fontSize: 16,
     paddingVertical: 6,
   },
-  iconBtn: {
-    marginLeft: 8,
+  sendBtn: {
+    marginLeft: 6,
   },
 });

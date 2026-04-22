@@ -337,31 +337,22 @@ export default function TeamMatchInfoScreen({ navigation, route }: any) {
     // Header row
     headerRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 20,
-      paddingTop: 8,
+      paddingTop: 12,
       paddingBottom: 4,
     },
-    glassBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-      justifyContent: 'center',
-      alignItems: 'center',
+    backButton: {
+      marginRight: 10,
     },
-
-    // Titles
-    title: {
-      fontSize: 32,
+    headerTitle: {
+      flex: 1,
+      fontSize: 22,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
-      paddingHorizontal: 20,
-      marginTop: 14,
-      marginBottom: 4,
+    },
+    menuBtn: {
+      padding: 4,
     },
     venueName: {
       fontSize: 22,
@@ -497,10 +488,11 @@ export default function TeamMatchInfoScreen({ navigation, route }: any) {
       <SafeAreaView style={s.safeArea}>
         {/* Header */}
         <View style={s.headerRow}>
-          <TouchableOpacity style={s.glassBtn} onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={20} color={colors.systemGreen} />
+          <TouchableOpacity style={s.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={24} color={colors.systemGreen} />
           </TouchableOpacity>
-          <TouchableOpacity style={s.glassBtn} onPress={handleMenu}>
+          <Text style={s.headerTitle} numberOfLines={1}>Match Info</Text>
+          <TouchableOpacity style={s.menuBtn} onPress={handleMenu}>
             <Ionicons name="ellipsis-horizontal" size={20} color={colors.systemGreen} />
           </TouchableOpacity>
         </View>
@@ -511,8 +503,7 @@ export default function TeamMatchInfoScreen({ navigation, route }: any) {
           </View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Title + Venue */}
-            <Text style={s.title}>Match Info</Text>
+            {/* Venue */}
             <Text style={s.venueName}>{venue}</Text>
 
             {/* Info Card */}
