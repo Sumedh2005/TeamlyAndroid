@@ -259,8 +259,8 @@ export default function MatchesScreen({ navigation, route }: any) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 16,
-      paddingTop: 14,
-      paddingBottom: 20,
+      paddingTop: 16,
+      paddingBottom: 16,
     },
     backButton: {
       width: 40,
@@ -285,7 +285,7 @@ export default function MatchesScreen({ navigation, route }: any) {
      borderColor: colors.backgroundTertiary,
     },
     title: {
-      fontSize: 22,
+      fontSize: 32,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
       flex: 1,

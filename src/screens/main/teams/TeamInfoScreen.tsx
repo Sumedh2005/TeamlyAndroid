@@ -356,12 +356,8 @@ export default function TeamInfoScreen({ route, navigation }: any) {
       paddingHorizontal: 20,
       marginBottom: 12,
     },
-    playerCard: {
-      backgroundColor: colors.backgroundSecondary,
-      borderRadius: 16,
-      marginHorizontal: 20,
-      marginBottom: 8,
-      paddingHorizontal: 16,
+    playerRow: {
+      paddingHorizontal: 20,
       paddingVertical: 14,
       flexDirection: 'row',
       alignItems: 'center',
@@ -413,7 +409,7 @@ export default function TeamInfoScreen({ route, navigation }: any) {
     }
 
     return (
-      <View key={member.teamMember.id} style={styles.playerCard}>
+      <View key={member.teamMember.id} style={styles.playerRow}>
         <View style={[styles.playerAvatar, isCaptainSection && styles.captainAvatar]}>
           <Ionicons name="person" size={22} color={colors.textTertiary} />
         </View>
@@ -525,15 +521,22 @@ export default function TeamInfoScreen({ route, navigation }: any) {
 
           <View style={styles.divider} />
 
-          {/* Captain */}
-          <Text style={styles.sectionTitle}>Captain</Text>
-          {captainList.map(member => renderPlayer(member, true))}
-
-          <View style={[styles.divider, { marginTop: 12 }]} />
-
-          {/* Players */}
-          <Text style={[styles.sectionTitle, { marginTop: 8 }]}>Players</Text>
-          {playersList.map(member => renderPlayer(member, false))}
+          {/* Members */}
+          <Text style={styles.sectionTitle}>Members</Text>
+          <View style={styles.menuCard}>
+            {captainList.map((member, index) => (
+              <React.Fragment key={member.teamMember.id}>
+                {renderPlayer(member, true)}
+                {(index < captainList.length - 1 || playersList.length > 0) && <View style={styles.menuDivider} />}
+              </React.Fragment>
+            ))}
+            {playersList.map((member, index) => (
+              <React.Fragment key={member.teamMember.id}>
+                {renderPlayer(member, false)}
+                {index < playersList.length - 1 && <View style={styles.menuDivider} />}
+              </React.Fragment>
+            ))}
+          </View>
 
           <View style={{ height: 40 }} />
         </ScrollView>

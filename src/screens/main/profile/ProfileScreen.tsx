@@ -110,11 +110,11 @@ export default function ProfileScreen({ navigation }: any) {
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 16,
-      marginTop: insets.top > 0 ? insets.top : 20,
+      marginTop: insets.top + 16,
       height: 40,
     },
     headerTitle: {
-      fontSize: 35,
+      fontSize: 32,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
     },

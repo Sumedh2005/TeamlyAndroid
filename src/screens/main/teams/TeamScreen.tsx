@@ -133,13 +133,12 @@ export default function TeamScreen({ navigation }: any) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginTop: 16,
-      marginBottom: 16,
+      paddingTop: 16,
+      paddingBottom: 16,
     },
     title: {
-      fontSize: FontSize.xxxl,
+      fontSize: 32,
       fontFamily: FontFamily.bold,
-      lineHeight: LineHeight.xxxl,
       color: colors.textPrimary,
     },
     addButton: {

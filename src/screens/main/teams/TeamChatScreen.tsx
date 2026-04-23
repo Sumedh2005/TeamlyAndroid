@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActionSheetIOS,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -185,11 +186,74 @@ export default function TeamChatScreen({ route, navigation }: any) {
     }
   };
 
+  const handleLongPress = (item: Message) => {
+    if (Platform.OS === 'ios') {
+      const options = item.isOwn ? ['Cancel', 'Copy', 'Delete'] : ['Cancel', 'Copy', 'Report'];
+      const destructiveButtonIndex = 2; // Delete or Report is always index 2
+
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: 0, destructiveButtonIndex },
+        async (buttonIndex) => {
+          if (buttonIndex === 1) {
+            // Copy
+            try {
+              const Clipboard = require('expo-clipboard');
+              await Clipboard.setStringAsync(item.text);
+            } catch (err) {
+              console.warn('expo-clipboard not installed or unavailable');
+            }
+          } else if (buttonIndex === 2) {
+            if (item.isOwn) {
+              // Delete
+              await supabase.from('chats').delete().eq('id', item.id);
+              setMessages(prev => prev.filter(m => m.id !== item.id));
+            } else {
+              // Report
+              Alert.alert('Report', 'This message has been reported.');
+            }
+          }
+        }
+      );
+    } else {
+      // Android fallback
+      const buttons = item.isOwn
+        ? [
+            { text: 'Copy', onPress: async () => {
+              try {
+                const Clipboard = require('expo-clipboard');
+                await Clipboard.setStringAsync(item.text);
+              } catch (e) {}
+            }},
+            { text: 'Delete', style: 'destructive', onPress: async () => {
+                await supabase.from('chats').delete().eq('id', item.id);
+                setMessages(prev => prev.filter(m => m.id !== item.id));
+            }},
+            { text: 'Cancel', style: 'cancel' }
+          ]
+        : [
+            { text: 'Copy', onPress: async () => {
+               try {
+                 const Clipboard = require('expo-clipboard');
+                 await Clipboard.setStringAsync(item.text);
+               } catch (e) {}
+            }},
+            { text: 'Report', style: 'destructive', onPress: () => Alert.alert('Report', 'This message has been reported.') },
+            { text: 'Cancel', style: 'cancel' }
+          ];
+
+      Alert.alert('Message Options', '', buttons as any);
+    }
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwn = item.isOwn;
     return (
       <View style={[styles.messageRow, { justifyContent: isOwn ? 'flex-end' : 'flex-start' }]}>
-        <View style={[styles.bubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
+        <TouchableOpacity 
+          style={[styles.bubble, isOwn ? styles.ownBubble : styles.otherBubble]}
+          activeOpacity={0.8}
+          onLongPress={() => handleLongPress(item)}
+        >
           <View style={styles.messageHeader}>
             {!isOwn && <Text style={styles.userName}>{item.userName}</Text>}
             <Text style={[styles.time, isOwn && { color: 'rgba(255,255,255,0.85)' }]}>{item.timestamp}</Text>
@@ -197,7 +261,7 @@ export default function TeamChatScreen({ route, navigation }: any) {
           <Text style={[styles.text, { color: isOwn ? '#fff' : '#000' }]}>
             {item.text}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
     );
   };
