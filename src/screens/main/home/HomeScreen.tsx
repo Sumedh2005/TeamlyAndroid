@@ -249,7 +249,7 @@ export default function HomeScreen({ navigation }: any) {
       paddingBottom: 12,
     },
     headerTitle: {
-      fontSize: 28,
+      fontSize: 32,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
       flex: 1,

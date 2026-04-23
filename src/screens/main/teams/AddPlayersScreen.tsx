@@ -249,21 +249,24 @@ export default function AddPlayersScreen({ navigation, route }: any) {
     },
 
     // List
-    listContent: {
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 110,
-      gap: 10,
+    listContainer: {
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: 24,
+      marginHorizontal: 20,
+      paddingVertical: 4,
+    },
+    divider: {
+      height: 0.5,
+      backgroundColor: colors.backgroundTertiary,
+      marginHorizontal: 20,
     },
 
     // Friend row
     friendRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.backgroundSecondary,
-      borderRadius: 50,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
       gap: 14,
     },
     avatarCircle: {
@@ -387,40 +390,44 @@ export default function AddPlayersScreen({ navigation, route }: any) {
         ) : (
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={s.listContent}
+            contentContainerStyle={{ paddingTop: 20, paddingBottom: 110 }}
             keyboardShouldPersistTaps="handled"
             onScrollBeginDrag={Keyboard.dismiss}
           >
-            {filteredFriends.map(friend => {
-              const isSelected = selectedIds.has(friend.id);
-              return (
-                <TouchableOpacity
-                  key={friend.id}
-                  style={s.friendRow}
-                  onPress={() => toggleSelect(friend.id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={s.avatarCircle}>
-                    <Ionicons name="person" size={22} color={colors.textTertiary} />
-                  </View>
-                  <Text style={s.friendName}>{friend.name}</Text>
-                  <View
-                    style={[
-                      s.checkbox,
-                      {
-                        backgroundColor: isSelected
-                          ? colors.systemGreen
-                          : colors.backgroundTertiary,
-                      },
-                    ]}
-                  >
-                    {isSelected && (
-                      <Ionicons name="checkmark" size={15} color="#FFFFFF" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            <View style={s.listContainer}>
+              {filteredFriends.map((friend, index) => {
+                const isSelected = selectedIds.has(friend.id);
+                return (
+                  <React.Fragment key={friend.id}>
+                    <TouchableOpacity
+                      style={s.friendRow}
+                      onPress={() => toggleSelect(friend.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={s.avatarCircle}>
+                        <Ionicons name="person" size={22} color={colors.textTertiary} />
+                      </View>
+                      <Text style={s.friendName}>{friend.name}</Text>
+                      <View
+                        style={[
+                          s.checkbox,
+                          {
+                            backgroundColor: isSelected
+                              ? colors.systemGreen
+                              : colors.backgroundTertiary,
+                          },
+                        ]}
+                      >
+                        {isSelected && (
+                          <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                    {index < filteredFriends.length - 1 && <View style={s.divider} />}
+                  </React.Fragment>
+                );
+              })}
+            </View>
           </ScrollView>
         )}
 

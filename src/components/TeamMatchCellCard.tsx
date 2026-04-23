@@ -67,7 +67,7 @@ export default function TeamMatchCellCard({
   const styles = StyleSheet.create({
     card: {
       backgroundColor: colors.backgroundSecondary,
-      borderRadius: 25,
+      borderRadius: 33,
       padding: 16,
       marginBottom: 12,
     },
@@ -81,7 +81,7 @@ export default function TeamMatchCellCard({
       borderBottomColor: colors.backgroundTertiary,
     },
     venueName: {
-      fontSize: 23,
+      fontSize: FontSize.lg,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
       flex: 1,
@@ -90,7 +90,7 @@ export default function TeamMatchCellCard({
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginTop: 20, // increased spacing to match Swift's breathing room
+      marginTop: 10,
     },
     infoLeft: {
       flexDirection: 'row',
@@ -98,14 +98,14 @@ export default function TeamMatchCellCard({
       gap: 10,
     },
     infoText: {
-      fontSize: 18,
+      fontSize: FontSize.md,
       fontFamily: FontFamily.regular,
       color: colors.textPrimary,
     },
     goingText: {
-      fontSize: 14,
-      fontFamily: FontFamily.medium,
-      color: colors.textPrimary,
+      fontSize: FontSize.sm,
+      fontFamily: FontFamily.regular,
+      color: colors.textSecondary,
     },
     challengeRow: {
       flexDirection: 'row',
@@ -113,9 +113,9 @@ export default function TeamMatchCellCard({
       gap: 6,
     },
     challengeTeam: {
-      fontSize: 16,
-      fontFamily: FontFamily.medium,
-      color: colors.textPrimary, // Swift says primaryWhite/Black
+      fontSize: FontSize.sm,
+      fontFamily: FontFamily.regular,
+      color: colors.textSecondary,
     },
   });
 
@@ -125,14 +125,14 @@ export default function TeamMatchCellCard({
 
         {/* Venue */}
         <View style={styles.venueRow}>
-          <Text style={{ fontSize: 23 }}>📍</Text>
+          <Text style={{ fontSize: 18 }}>📍</Text>
           <Text style={styles.venueName} numberOfLines={1}>{venue}</Text>
         </View>
 
         {/* Date Row */}
         <View style={styles.infoRow}>
           <View style={styles.infoLeft}>
-            <Ionicons name="calendar-outline" size={20} color={colors.textPrimary} />
+            <Ionicons name="calendar-outline" size={18} color={colors.textPrimary} />
             <Text style={styles.infoText}>{displayDate}</Text>
           </View>
           {isChallenge && opponentTeamName ? (
@@ -148,7 +148,7 @@ export default function TeamMatchCellCard({
           <View style={styles.infoLeft}>
             <Ionicons
               name={timeIcon === 'sunny' ? 'partly-sunny' : 'moon'}
-              size={20}
+              size={18}
               color={timeIcon === 'sunny' ? '#FFCC00' : '#007AFF'}
             />
             <Text style={styles.infoText}>{startTime} - {endTime}</Text>
