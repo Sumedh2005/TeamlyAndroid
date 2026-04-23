@@ -132,11 +132,13 @@ class HomeManager {
   }
 
   async fetchMatchesForSport(sportId: number, collegeId: number, currentUserId: string): Promise<DBMatch[]> {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const localNow = new Date();
+    const pseudoNow = new Date(Date.UTC(localNow.getFullYear(), localNow.getMonth(), localNow.getDate(), localNow.getHours(), localNow.getMinutes(), localNow.getSeconds()));
+    
+    const todayStr = pseudoNow.toISOString().split('T')[0];
+    const tomorrowPseudo = new Date(pseudoNow);
+    tomorrowPseudo.setUTCDate(tomorrowPseudo.getUTCDate() + 1);
+    const tomorrowStr = tomorrowPseudo.toISOString().split('T')[0];
 
     const community = await this.fetchSportCommunity(collegeId, sportId);
     if (!community) return [];
@@ -156,12 +158,11 @@ class HomeManager {
       return [];
     }
 
-    const currentDateTime = new Date();
     const filteredMatchRecords = matchRecords.filter((record: MatchRecord) => {
       if (record.match_date === tomorrowStr) return true;
       if (record.match_date === todayStr) {
-        const matchDateTime = new Date(`${record.match_date}T${record.match_time}`);
-        return matchDateTime > currentDateTime;
+        const matchDateTime = new Date(`${record.match_date}T${record.match_time}Z`);
+        return matchDateTime.getTime() > pseudoNow.getTime();
       }
       return true;
     });
@@ -271,16 +272,19 @@ class HomeManager {
 
   async fetchUserUpcomingMatches(userId: string): Promise<DBMatch[]> {
     console.log(`🔍 Fetching upcoming matches for user: ${userId}`);
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const localNow = new Date();
+    const pseudoNow = new Date(Date.UTC(localNow.getFullYear(), localNow.getMonth(), localNow.getDate(), localNow.getHours(), localNow.getMinutes(), localNow.getSeconds()));
+    
+    const todayStr = pseudoNow.toISOString().split('T')[0];
+    const tomorrowPseudo = new Date(pseudoNow);
+    tomorrowPseudo.setUTCDate(tomorrowPseudo.getUTCDate() + 1);
+    const tomorrowStr = tomorrowPseudo.toISOString().split('T')[0];
 
     const { data: createdMatchesData, error: createdError } = await supabase
       .from('matches')
       .select('*, sports!inner(name)')
       .eq('posted_by_user_id', userId)
+      .eq('match_type', 'sport_community')
       .in('match_date', [todayStr, tomorrowStr])
       .order('match_date', { ascending: true })
       .order('match_time', { ascending: true });
@@ -333,7 +337,7 @@ class HomeManager {
       for (const item of rsvpMatchesData) {
         // @ts-ignore
         const matchData = item.matches;
-        if (matchData) {
+        if (matchData && matchData.match_type === 'sport_community') {
           const match = parseMatchData(matchData);
           if (match && !allMatches.find(m => m.id === match.id)) {
             allMatches.push(match);
@@ -343,15 +347,14 @@ class HomeManager {
     }
 
     // Filter matches that are starting within the next 3 hours
-    const now = new Date();
     const upcomingMatches = allMatches.filter(match => {
-      // Combine date and time
+      // Combine date and time precisely via pseudoUTC 
       const matchDateTimeStr = `${match.matchDate.toISOString().split('T')[0]}T${match.matchTime.toISOString().split('T')[1]}`;
       const matchDateTime = new Date(matchDateTimeStr);
 
-      const timeDifferenceMinutes = (matchDateTime.getTime() - now.getTime()) / (1000 * 60);
+      const timeDifferenceMinutes = (matchDateTime.getTime() - pseudoNow.getTime()) / (1000 * 60);
 
-      const isToday = match.matchDate.toISOString().split('T')[0] === now.toISOString().split('T')[0];
+      const isToday = match.matchDate.toISOString().split('T')[0] === pseudoNow.toISOString().split('T')[0];
       const isUpcoming = isToday && timeDifferenceMinutes > 0 && timeDifferenceMinutes <= 180;
 
       return isUpcoming;

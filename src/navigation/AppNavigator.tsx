@@ -46,8 +46,9 @@ export default function AppNavigator() {
           name="EditProfile" 
           component={EditProfileScreen} 
           options={{
-            presentation: 'formSheet',
-            sheetGrabberVisible: true,
+            presentation: 'transparentModal',
+            animation: 'slide_from_bottom',
+            contentStyle: { backgroundColor: 'transparent' }
           }}
         />
         <Stack.Screen name="EditName" component={EditNameScreen} />

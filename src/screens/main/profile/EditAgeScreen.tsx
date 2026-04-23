@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
-  FlatList,
   Dimensions,
-  Animated,
   Alert,
+  ScrollView,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +21,7 @@ import { FontFamily } from '../../../theme/fonts';
 import { supabase } from '../../../lib/supabase';
 
 const { width } = Dimensions.get('window');
-const ITEM_WIDTH = width / 4;
+const ITEM_WIDTH = width / 3;
 const AGES = Array.from({ length: 100 - 16 + 1 }, (_, i) => 16 + i);
 
 export default function EditAgeScreen({ navigation, route }: any) {
@@ -33,19 +34,22 @@ export default function EditAgeScreen({ navigation, route }: any) {
   const initialIndex = AGES.includes(currentAge) ? AGES.indexOf(currentAge) : AGES.indexOf(20);
   const [selectedAge, setSelectedAge] = useState(AGES[initialIndex]);
 
-  // Pre-seed animated offset mathematically mapping standard index padding perfectly
-  const scrollX = useRef(new Animated.Value(initialIndex * ITEM_WIDTH)).current;
-  const flatListRef = useRef<FlatList>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const initialOffset = initialIndex * ITEM_WIDTH;
 
   useEffect(() => {
-    // Snap immediately to correct index relying purely on physical offset mapping over buggy layout algorithms
     setTimeout(() => {
-      flatListRef.current?.scrollToOffset({
-        offset: initialIndex * ITEM_WIDTH,
-        animated: false,
-      });
-    }, 100);
-  }, []);
+      scrollRef.current?.scrollTo({ x: initialOffset, y: 0, animated: false });
+    }, 50);
+  }, [initialOffset]);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offset = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offset / ITEM_WIDTH);
+    if (index >= 0 && index < AGES.length) {
+      setSelectedAge(AGES[index]);
+    }
+  };
 
   const handleCancel = () => {
     navigation.goBack();
@@ -71,75 +75,20 @@ export default function EditAgeScreen({ navigation, route }: any) {
     }
   };
 
-  // Firing when drag completely stops
-  const onMomentumScrollEnd = (e: any) => {
-    const offsetX = e.nativeEvent.contentOffset.x;
-    let closestIndex = Math.round(offsetX / ITEM_WIDTH);
-    
-    closestIndex = Math.max(0, Math.min(closestIndex, AGES.length - 1));
-    setSelectedAge(AGES[closestIndex]);
-  };
 
-  const renderItem = ({ item, index }: any) => {
-    // Math mapping accurately to Swift's abs(labelCenterX - centerX)
-    const inputRange = [
-      (index - 2) * ITEM_WIDTH,
-      (index - 1) * ITEM_WIDTH,
-      index * ITEM_WIDTH,
-      (index + 1) * ITEM_WIDTH,
-      (index + 2) * ITEM_WIDTH,
-    ];
-
-    const scale = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.4, 0.6, 1, 0.6, 0.4],
-      extrapolate: 'clamp',
-    });
-
-    const opacity = scrollX.interpolate({
-      inputRange,
-      outputRange: [0, 0.6, 1, 0.6, 0],
-      extrapolate: 'clamp',
-    });
-
-    const color = scrollX.interpolate({
-      inputRange,
-      outputRange: [
-        isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-        isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
-        '#34C759',
-        isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
-        isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-      ],
-      extrapolate: 'clamp'
-    });
-
-    return (
-      <View style={{ width: ITEM_WIDTH, justifyContent: 'center', alignItems: 'center', overflow: 'visible' }}>
-        <Animated.Text
-          numberOfLines={1}
-          style={[
-            styles.ageText,
-            {
-               transform: [{ scale }],
-               opacity,
-               color,
-               width: ITEM_WIDTH * 1.5,
-               textAlign: 'center'
-            }
-          ]}
-        >
-          {item}
-        </Animated.Text>
-      </View>
-    );
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
       <LinearGradient
-        colors={isDarkMode ? ['rgba(0, 38, 0, 1)', 'transparent'] : ['rgba(53, 199, 89, 0.3)', 'transparent']}
-        style={styles.linearGradient}
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
       />
       
       <SafeAreaView style={styles.safeArea}>
@@ -151,31 +100,39 @@ export default function EditAgeScreen({ navigation, route }: any) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.content}>
-          <Animated.FlatList
-            ref={flatListRef}
-            data={AGES}
-            keyExtractor={(item) => item.toString()}
+        <View style={styles.pickerContainer}>
+          <ScrollView
+            ref={scrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
-            bounces={true}
             snapToInterval={ITEM_WIDTH}
             decelerationRate="fast"
-            contentContainerStyle={{
-              paddingHorizontal: (width - ITEM_WIDTH) / 2
-            }}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-              { useNativeDriver: false }
-            )}
-            onMomentumScrollEnd={onMomentumScrollEnd}
-            renderItem={renderItem}
-            getItemLayout={(_, index) => ({
-              length: ITEM_WIDTH,
-              offset: ITEM_WIDTH * index,
-              index,
+            onScroll={handleScroll}
+            onMomentumScrollEnd={handleScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{ paddingHorizontal: ITEM_WIDTH }}
+            style={styles.agePicker}
+          >
+            {AGES.map((age) => {
+              const isSelected = age === selectedAge;
+              return (
+                <View key={age} style={styles.ageItem}>
+                  <Text
+                    style={[
+                      styles.ageText,
+                      {
+                        fontSize: isSelected ? 80 : 40,
+                        color: isSelected ? colors.systemGreen : colors.textTertiary,
+                        opacity: isSelected ? 1 : 0.4,
+                      },
+                    ]}
+                  >
+                    {age}
+                  </Text>
+                </View>
+              );
             })}
-          />
+          </ScrollView>
         </View>
 
         <View style={styles.bottomContainer}>
@@ -224,14 +181,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: {
+  pickerContainer: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  agePicker: {
+    maxHeight: 120,
+  },
+  ageItem: {
+    width: ITEM_WIDTH,
     justifyContent: 'center',
     alignItems: 'center',
   },
   ageText: {
-    fontSize: 90, // Mapped perfectly wrapping to Swift's 95 scaling bounds
-    fontFamily: FontFamily.bold, // maps to .heavy
+    fontFamily: FontFamily.bold,
   },
   bottomContainer: {
     paddingBottom: 30,

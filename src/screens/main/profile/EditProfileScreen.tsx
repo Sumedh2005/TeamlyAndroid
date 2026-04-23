@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -162,10 +162,26 @@ export default function EditProfileScreen({ navigation, route }: any) {
     navigation.navigate('UpdateSkill', { sports: sportsList, currentUserId });
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? '#1C1C1E' : '#F2F2F7' }]}>
-      <SafeAreaView style={styles.safeArea}>
-        
+    <View style={styles.modalOverlay}>
+      <TouchableOpacity 
+        style={styles.backdrop} 
+        activeOpacity={1} 
+        onPress={handleBack} 
+      />
+      <View style={[
+        styles.sheetContent, 
+        { 
+          backgroundColor: isDarkMode ? '#1C1C1E' : '#F2F2F7',
+          paddingBottom: Math.max(insets.bottom, 20) + 20
+        }
+      ]}>
+        <View style={styles.dragIndicatorWrapper}>
+          <View style={styles.dragIndicator} />
+        </View>
+
         {/* Central Identity Graphic Wrapper */}
         <View style={styles.avatarSection}>
           <TouchableOpacity 
@@ -211,21 +227,39 @@ export default function EditProfileScreen({ navigation, route }: any) {
           </View>
         </View>
 
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  modalOverlay: {
     flex: 1,
+    justifyContent: 'flex-end',
   },
-  safeArea: {
-    flex: 1,
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheetContent: {
+    borderTopLeftRadius: 35,
+    borderTopRightRadius: 35,
+    overflow: 'hidden',
+  },
+  dragIndicatorWrapper: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  dragIndicator: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(150, 150, 150, 0.4)',
   },
   avatarSection: {
     alignItems: 'center',
-    marginTop: 36,
+    marginTop: 10,
   },
   avatarButton: {
     width: 110,

@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,9 @@ interface Sport {
   name: string;
   emoji: string;
 }
+
+const { width } = Dimensions.get('window');
+const ITEM_SIZE = (width - 48 - 32) / 3;
 
 export default function AddNewSportScreen({ navigation, route }: any) {
   const colors = useColors();
@@ -80,26 +84,20 @@ export default function AddNewSportScreen({ navigation, route }: any) {
     
     return (
       <TouchableOpacity
+        key={item.id.toString()}
         style={[
           styles.sportCell,
           { 
-             backgroundColor: isDarkMode ? '#1C1C1E' : '#F2F2F7',
-             borderColor: isSelected ? '#34C759' : 'transparent',
-             borderWidth: isSelected ? 2 : 0,
+            backgroundColor: isSelected
+              ? `${colors.systemGreen}22`
+              : colors.backgroundSecondary,
+            borderWidth: isSelected ? 2 : 0,
+            borderColor: isSelected ? colors.systemGreen : 'transparent',
           }
         ]}
         onPress={() => toggleSport(item)}
       >
         <Text style={styles.sportEmoji}>{item.emoji}</Text>
-        <Text 
-           style={[
-              styles.sportName, 
-              { color: isDarkMode ? '#FFFFFF' : '#000000' }
-           ]}
-           numberOfLines={1}
-        >
-          {item.name}
-        </Text>
       </TouchableOpacity>
     );
   };
@@ -107,8 +105,15 @@ export default function AddNewSportScreen({ navigation, route }: any) {
   return (
     <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
       <LinearGradient
-        colors={isDarkMode ? ['rgba(0, 38, 0, 1)', 'transparent'] : ['rgba(53, 199, 89, 0.3)', 'transparent']}
-        style={styles.linearGradient}
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
       />
       
       <SafeAreaView style={styles.safeArea}>
@@ -197,29 +202,22 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   columnWrapper: {
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    gap: 15,
+    justifyContent: 'flex-start',
+    marginBottom: 16,
+    gap: 16,
   },
   sportCell: {
-    width: 90,
-    height: 90,
-    borderRadius: 20,
+    width: ITEM_SIZE,
+    height: ITEM_SIZE,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 5,
   },
   sportEmoji: {
-    fontSize: 32,
-    marginBottom: 4,
-  },
-  sportName: {
-    fontSize: 12,
-    fontFamily: FontFamily.medium,
-    textAlign: 'center',
+    fontSize: 40,
   },
   emptyText: {
     fontFamily: FontFamily.regular,

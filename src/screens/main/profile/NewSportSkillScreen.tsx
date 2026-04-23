@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,8 +17,13 @@ import { FontFamily } from '../../../theme/fonts';
 import { supabase } from '../../../lib/supabase';
 
 // Map strictly to Swift implementation
-const SKILLS = ['Beginner', 'Intermediate', 'Experienced', 'Advanced'];
-const SKILL_COLORS = ['#007AFF', '#FFCC00', '#FF9500', '#FF3B30']; // Blue, Yellow, Orange, Red
+const SKILL_LEVELS = [
+  { label: 'Beginner',     color: '#007AFF' },
+  { label: 'Intermediate', color: '#FFD60A' },
+  { label: 'Experienced',  color: '#FF9500' },
+  { label: 'Advanced',     color: '#FF3B30' },
+];
+const SLIDER_HEIGHT = 340;
 
 export default function NewSportSkillScreen({ navigation, route }: any) {
   const colors = useColors();
@@ -32,8 +38,46 @@ export default function NewSportSkillScreen({ navigation, route }: any) {
   const [selectedSkillIndex, setSelectedSkillIndex] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [dragY, setDragY] = useState<number | null>(null);
+  const sliderRef = useRef<View>(null);
+  const sliderTopY = useRef(0);
+
   const currentSport = selectedSports[currentSportIndex];
   const isLastSport = currentSportIndex === selectedSports.length - 1;
+
+  const currentSkill = SKILL_LEVELS[selectedSkillIndex];
+
+  const updateSlider = (pageY: number, isDragging: boolean) => {
+    const relativeY = pageY - sliderTopY.current;
+    const clamped = Math.max(0, Math.min(SLIDER_HEIGHT, relativeY));
+    const level = Math.round(
+      ((SLIDER_HEIGHT - clamped) / SLIDER_HEIGHT) * (SKILL_LEVELS.length - 1)
+    );
+    if (isDragging) {
+      setDragY(clamped);
+    } else {
+      setDragY(null);
+    }
+    setSelectedSkillIndex(level);
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (event) => updateSlider(event.nativeEvent.pageY, true),
+      onPanResponderMove: (event) => updateSlider(event.nativeEvent.pageY, true),
+      onPanResponderRelease: () => setDragY(null),
+      onPanResponderTerminate: () => setDragY(null),
+    })
+  ).current;
+
+  const currentThumbPos = dragY !== null
+    ? dragY
+    : SLIDER_HEIGHT - (selectedSkillIndex / (SKILL_LEVELS.length - 1)) * SLIDER_HEIGHT;
+
+  const thumbPosition = currentThumbPos;
+  const fillHeight = SLIDER_HEIGHT - currentThumbPos;
 
   const handleCancel = () => {
     // Safely jump back to EditProfile directly instead of double popping
@@ -48,7 +92,7 @@ export default function NewSportSkillScreen({ navigation, route }: any) {
     // Record current selection
     const updatedSkills: Record<string, string> = { 
       ...skillLevelsForSports, 
-      [currentSport.name]: SKILLS[selectedSkillIndex] 
+      [currentSport.name]: SKILL_LEVELS[selectedSkillIndex].label 
     };
     setSkillLevelsForSports(updatedSkills);
 
@@ -86,8 +130,15 @@ export default function NewSportSkillScreen({ navigation, route }: any) {
   return (
     <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
       <LinearGradient
-        colors={isDarkMode ? ['rgba(0, 38, 0, 1)', 'transparent'] : ['rgba(53, 199, 89, 0.3)', 'transparent']}
-        style={styles.linearGradient}
+        colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 150,
+          zIndex: 0,
+        }}
       />
       
       <SafeAreaView style={styles.safeArea}>
@@ -108,52 +159,49 @@ export default function NewSportSkillScreen({ navigation, route }: any) {
 
         <Text style={styles.emojiText}>{currentSport?.emoji}</Text>
 
-        <View style={styles.sliderContainer}>
-          {/* Vertical Touch Nodes mapping Swift verticalSlider positions */}
-          <View style={styles.verticalTrackContainer}>
-            <View style={[styles.trackLine, { backgroundColor: isDarkMode ? '#2C2C2E' : '#E5E5EA' }]} />
-            
-            {/* The active selection track pill */}
-            <View 
-               style={[
-                 styles.activeTrackLine, 
-                 { 
-                   backgroundColor: SKILL_COLORS[selectedSkillIndex],
-                   // Bottom is 0, so height grows from bottom
-                   height: `${(selectedSkillIndex / 3) * 100}%` 
-                 }
-               ]} 
-            />
-          </View>
-
+        <View style={styles.content}>
           <View style={styles.labelsContainer}>
-            {/* Map backward to match Advanced on top seamlessly */}
-            {SKILLS.slice().reverse().map((skill, reversedIndex) => {
-              const actualIndex = 3 - reversedIndex;
-              const isSelected = actualIndex === selectedSkillIndex;
-              
+            {[...SKILL_LEVELS].reverse().map((level, index) => {
+              const levelIndex = SKILL_LEVELS.length - 1 - index;
+              const isSelected = selectedSkillIndex === levelIndex;
               return (
-                <TouchableOpacity 
-                   key={skill}
-                   style={styles.labelNode}
-                   onPress={() => setSelectedSkillIndex(actualIndex)}
+                <TouchableOpacity
+                  key={level.label}
+                  onPress={() => setSelectedSkillIndex(levelIndex)}
+                  activeOpacity={0.7}
                 >
-                  <Text 
+                  <Text
                     style={[
-                      styles.skillText, 
-                      { 
-                         color: isSelected 
-                           ? SKILL_COLORS[actualIndex] 
-                           : (isDarkMode ? '#8E8E93' : 'rgba(0,0,0,0.4)'),
-                         fontFamily: isSelected ? FontFamily.bold : FontFamily.medium
-                      }
+                      styles.levelLabel,
+                      {
+                        color: isSelected ? currentSkill.color : colors.textTertiary,
+                        opacity: isSelected ? 1 : 0.4,
+                        fontSize: isSelected ? 28 : 24,
+                      },
                     ]}
                   >
-                    {skill}
+                    {level.label}
                   </Text>
                 </TouchableOpacity>
-              )
+              );
             })}
+          </View>
+
+          <View
+            ref={sliderRef}
+            style={styles.sliderContainer}
+            onLayout={() => {
+              sliderRef.current?.measure((_x, _y, _w, _h, _px, py) => {
+                sliderTopY.current = py;
+              });
+            }}
+            {...panResponder.panHandlers}
+          >
+            <View style={[styles.sliderTrack, { backgroundColor: colors.backgroundTertiary }]} />
+            <View style={[styles.sliderFill, { height: fillHeight, backgroundColor: currentSkill.color }]} />
+            <View style={[styles.sliderThumb, { top: thumbPosition - 18, backgroundColor: colors.backgroundPrimary }]}>
+              <View style={[styles.thumbInner, { backgroundColor: currentSkill.color }]} />
+            </View>
           </View>
         </View>
 
@@ -219,50 +267,58 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
   },
-  sliderContainer: {
-    marginTop: 30,
+  content: {
     flexDirection: 'row',
-    alignSelf: 'center',
-    width: 250,
-    height: 380,
-  },
-  verticalTrackContainer: {
-    width: 8,
-    height: '100%',
-    marginLeft: 'auto', // Push strictly to right side of slider container
-    position: 'absolute',
-    right: 0,
-    borderRadius: 4,
-    justifyContent: 'flex-end', // Ensure active track spawns from bottom
-    overflow: 'hidden',
-  },
-  trackLine: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 4,
-  },
-  activeTrackLine: {
-    width: '100%',
-    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    gap: 64,
   },
   labelsContainer: {
-    flex: 1,
+    height: SLIDER_HEIGHT,
     justifyContent: 'space-between',
-    paddingRight: 40, // Space from track
-    paddingVertical: 10,
-  },
-  labelNode: {
-    height: 70,
-    justifyContent: 'center',
     alignItems: 'flex-end',
   },
-  skillText: {
-    fontSize: 26,
-    textAlign: 'right',
+  levelLabel: {
+    fontFamily: FontFamily.bold,
+  },
+  sliderContainer: {
+    width: 50,
+    height: SLIDER_HEIGHT,
+    alignItems: 'center',
+  },
+  sliderTrack: {
+    width: 4,
+    height: SLIDER_HEIGHT,
+    borderRadius: 2,
+    position: 'absolute',
+  },
+  sliderFill: {
+    width: 4,
+    borderRadius: 2,
+    position: 'absolute',
+    bottom: 0,
+  },
+  sliderThumb: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    position: 'absolute',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  thumbInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   bottomContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 30,
+    paddingBottom: 48,
     alignItems: 'center',
   },
   saveButton: {

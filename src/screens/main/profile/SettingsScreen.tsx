@@ -26,7 +26,7 @@ const ListCell = ({ icon, title, isDestructive, onPress, isDarkMode, colors, sho
   <TouchableOpacity
     style={[
       styles.cell,
-      { backgroundColor: isDarkMode ? colors.backgroundSecondary : colors.backgroundPrimary }
+      { backgroundColor: colors.backgroundSecondary }
     ]}
     onPress={onPress}
   >
@@ -184,7 +184,7 @@ export default function SettingsScreen({ navigation, route }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.backgroundPrimary }]}>
       <LinearGradient
         colors={['rgba(52, 199, 89, 0.18)', 'rgba(52, 199, 89, 0)']}
         style={styles.linearGradient}
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
   },
   sectionGroup: {
-    borderRadius: 12,
+    borderRadius: 30,
     overflow: 'hidden',
   },
   cell: {
