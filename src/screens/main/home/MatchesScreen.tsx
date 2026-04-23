@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../../theme/colors';
-import { FontFamily, FontSize } from '../../../theme/fonts';
+import { FontFamily } from '../../../theme/fonts';
 import MatchCellCard from '../../../components/MatchCellCard';
 import SportsPostScreen from '../post/SportsPostScreen';
 import MatchesManager from '../../../services/MatchesManager';
@@ -285,7 +285,7 @@ export default function MatchesScreen({ navigation, route }: any) {
      borderColor: colors.backgroundTertiary,
     },
     title: {
-      fontSize: 32,
+      fontSize: 22,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
       flex: 1,

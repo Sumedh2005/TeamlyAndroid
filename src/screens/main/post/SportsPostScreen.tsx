@@ -197,7 +197,7 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
     // Sport display (non-editable)
     sportDisplay: {
       height: 52,
-      backgroundColor: colors.backgroundPrimary,
+      backgroundColor: colors.backgroundTertiary,
       borderRadius: 50,
       paddingHorizontal: 20,
       flexDirection: 'row',
@@ -213,7 +213,7 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
 
     input: {
       height: 52,
-      backgroundColor: colors.backgroundPrimary,
+      backgroundColor: colors.backgroundTertiary,
       borderRadius: 50,
       paddingHorizontal: 20,
       fontSize: FontSize.md,
@@ -241,7 +241,7 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
     rowButton: {
       flex: 1,
       height: 46,
-      backgroundColor: colors.backgroundPrimary,
+      backgroundColor: colors.backgroundTertiary,
       borderRadius: 50,
       justifyContent: 'center',
       alignItems: 'center',
@@ -254,7 +254,7 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
     playersInput: {
       flex: 1,
       height: 46,
-      backgroundColor: colors.backgroundPrimary,
+      backgroundColor: colors.backgroundTertiary,
       borderRadius: 50,
       paddingHorizontal: 20,
       fontSize: FontSize.md,
@@ -275,7 +275,7 @@ export default function SportsPostScreen({ visible, onClose, sport }: Props) {
       color: colors.primaryWhite,
     },
     dropdownList: {
-      backgroundColor: colors.backgroundPrimary,
+      backgroundColor: colors.backgroundTertiary,
       borderRadius: 16,
       marginTop: -4,
       marginBottom: 12,

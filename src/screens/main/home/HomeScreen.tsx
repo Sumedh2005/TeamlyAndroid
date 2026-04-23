@@ -409,10 +409,10 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.headerTitle}>{userCollege?.name || 'Loading...'}</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity style={styles.iconButton} onPress={() => setShowPost(true)}>
-              <Ionicons name="add" size={22} color={colors.textPrimary} />
+              <Ionicons name="add" size={22} color={colors.systemGreen} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Notifications')}>
-              <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
+              <Ionicons name="notifications-outline" size={20} color={colors.systemGreen} />
             </TouchableOpacity>
           </View>
         </View>

@@ -14,6 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../../../theme/colors';
 import { FontFamily } from '../../../theme/fonts';
 import { supabase } from '../../../lib/supabase';
@@ -43,6 +44,7 @@ interface ReportModalProps {
 
 export default function ReportModal({ visible, onClose, reportType, currentUserId }: ReportModalProps) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [otherText, setOtherText] = useState('');
@@ -194,7 +196,7 @@ export default function ReportModal({ visible, onClose, reportType, currentUserI
       alignItems: 'center',
       paddingHorizontal: 24,
       paddingTop: 16,
-      paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+      paddingBottom: 16,
     },
     cancelButtonText: {
       fontSize: 17,
@@ -224,15 +226,18 @@ export default function ReportModal({ visible, onClose, reportType, currentUserI
       visible={visible}
       animationType="slide"
       transparent
+      statusBarTranslucent
+      navigationBarTranslucent={true}
       onRequestClose={handleClose}
     >
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-              <View style={styles.sheet}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <TouchableWithoutFeedback onPress={handleClose}>
+          <View style={styles.overlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
                 <View style={styles.grabber} />
                 
                 <Text style={styles.title}>{getTitle()}</Text>
@@ -291,10 +296,10 @@ export default function ReportModal({ visible, onClose, reportType, currentUserI
                 </View>
 
               </View>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

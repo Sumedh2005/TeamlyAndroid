@@ -11,13 +11,15 @@ import {
   Alert,
   ActionSheetIOS,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../../lib/supabase';
 import { useColors } from '../../../theme/colors';
 import ChallengeTeamScreen from './ChallengeTeamScreen';
 import MatchRequestScreen from './MatchRequestScreen';
+import ReportModal from '../report/ReportModal';
+import { FontFamily } from '../../../theme/fonts';
 
 interface Message {
   id: string;
@@ -29,12 +31,15 @@ interface Message {
 
 export default function TeamChatScreen({ route, navigation }: any) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { teamId, team } = route.params || {};
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [showChallenge, setShowChallenge] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
@@ -197,10 +202,12 @@ export default function TeamChatScreen({ route, navigation }: any) {
           if (buttonIndex === 1) {
             // Copy
             try {
-              const Clipboard = require('expo-clipboard');
-              await Clipboard.setStringAsync(item.text);
+              const libName = 'expo-clipboard';
+              const ExpoClipboard = require(libName);
+              await ExpoClipboard.setStringAsync(item.text);
+              Alert.alert('Copied', 'Message copied to clipboard.');
             } catch (err) {
-              console.warn('expo-clipboard not installed or unavailable');
+              Alert.alert('Notice', 'Copy feature requires expo-clipboard. Please run: npx expo install expo-clipboard');
             }
           } else if (buttonIndex === 2) {
             if (item.isOwn) {
@@ -209,7 +216,8 @@ export default function TeamChatScreen({ route, navigation }: any) {
               setMessages(prev => prev.filter(m => m.id !== item.id));
             } else {
               // Report
-              Alert.alert('Report', 'This message has been reported.');
+              setSelectedMessageId(item.id);
+              setReportModalVisible(true);
             }
           }
         }
@@ -220,9 +228,13 @@ export default function TeamChatScreen({ route, navigation }: any) {
         ? [
             { text: 'Copy', onPress: async () => {
               try {
-                const Clipboard = require('expo-clipboard');
-                await Clipboard.setStringAsync(item.text);
-              } catch (e) {}
+                const libName = 'expo-clipboard';
+                const ExpoClipboard = require(libName);
+                await ExpoClipboard.setStringAsync(item.text);
+                Alert.alert('Copied', 'Message copied to clipboard.');
+              } catch (e) {
+                Alert.alert('Notice', 'Copy feature requires expo-clipboard. Please run: npx expo install expo-clipboard');
+              }
             }},
             { text: 'Delete', style: 'destructive', onPress: async () => {
                 await supabase.from('chats').delete().eq('id', item.id);
@@ -233,11 +245,18 @@ export default function TeamChatScreen({ route, navigation }: any) {
         : [
             { text: 'Copy', onPress: async () => {
                try {
-                 const Clipboard = require('expo-clipboard');
-                 await Clipboard.setStringAsync(item.text);
-               } catch (e) {}
+                 const libName = 'expo-clipboard';
+                 const ExpoClipboard = require(libName);
+                 await ExpoClipboard.setStringAsync(item.text);
+                 Alert.alert('Copied', 'Message copied to clipboard.');
+               } catch (e) {
+                 Alert.alert('Notice', 'Copy feature requires expo-clipboard. Please run: npx expo install expo-clipboard');
+               }
             }},
-            { text: 'Report', style: 'destructive', onPress: () => Alert.alert('Report', 'This message has been reported.') },
+            { text: 'Report', style: 'destructive', onPress: () => {
+              setSelectedMessageId(item.id);
+              setReportModalVisible(true);
+            }},
             { text: 'Cancel', style: 'cancel' }
           ];
 
@@ -302,7 +321,7 @@ export default function TeamChatScreen({ route, navigation }: any) {
           style={{ flex: 1 }}
         />
 
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
           {/* Matches circle */}
           <TouchableOpacity
             style={styles.circleBtn}
@@ -344,6 +363,13 @@ export default function TeamChatScreen({ route, navigation }: any) {
 
         <ChallengeTeamScreen visible={showChallenge} onClose={() => setShowChallenge(false)} team={team} teamId={teamId} />
         <MatchRequestScreen visible={showRequests} onClose={() => setShowRequests(false)} team={team} teamId={teamId} />
+
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          reportType={{ type: 'message', id: selectedMessageId || '' }}
+          currentUserId={currentUserId || ''}
+        />
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
@@ -363,7 +389,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: '600',
+    fontFamily: FontFamily.bold,
   },
   messageRow: {
     flexDirection: 'row',
@@ -405,8 +431,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    paddingBottom : 20,
+    paddingTop: 8,
     gap: 8,
   },
   circleBtn: {

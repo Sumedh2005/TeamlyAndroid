@@ -335,8 +335,9 @@ class HomeManager {
 
     if (rsvpMatchesData) {
       for (const item of rsvpMatchesData) {
-        // @ts-ignore
-        const matchData = item.matches;
+        const matchesField = item.matches as any;
+        const matchData = Array.isArray(matchesField) ? matchesField[0] : matchesField;
+        
         if (matchData && matchData.match_type === 'sport_community') {
           const match = parseMatchData(matchData);
           if (match && !allMatches.find(m => m.id === match.id)) {

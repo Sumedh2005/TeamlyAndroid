@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import { supabase } from '../../../lib/supabase';
@@ -93,6 +94,7 @@ function isPM(t: string): boolean {
 export default function MatchRequestScreen({ visible, onClose, team, teamId }: Props) {
   const colors = useColors();
   const isDark = colors.isDark;
+  const insets = useSafeAreaInsets();
 
   const activeTeamId: string | undefined = team?.id ?? teamId;
 
@@ -259,7 +261,7 @@ export default function MatchRequestScreen({ visible, onClose, team, teamId }: P
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
-            <View style={[styles.sheet, { backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }]}>
+            <View style={[styles.sheet, { backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7', paddingBottom: Math.max(insets.bottom, 24) + 24 }]}>
 
               {/* Handle */}
               <View style={[styles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.3)' : '#C7C7CC' }]} />
@@ -415,7 +417,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
-    paddingBottom: 48,
     paddingTop: 12,
     maxHeight: '72%',
   },

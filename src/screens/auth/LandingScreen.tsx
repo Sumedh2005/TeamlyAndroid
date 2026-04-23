@@ -83,21 +83,22 @@ export default function LandingScreen({ navigation }: any) {
       borderRadius: 4,
     },
     textContainer: {
-      flex: 1,
       alignItems: 'center',
       marginTop: 28,
+      paddingHorizontal: 20,
     },
     title: {
       fontSize: 40,
       fontFamily: FontFamily.bold,
       color: colors.textPrimary,
+      textAlign: 'center',
     },
     subtitle: {
       fontSize: FontSize.md,
       fontFamily: FontFamily.regular,
       color: colors.textSecondary,
-      fontStyle: 'italic',
       marginTop: 4,
+      textAlign: 'center',
     },
     bottomContainer: {
       paddingHorizontal: 24,
@@ -200,8 +201,10 @@ export default function LandingScreen({ navigation }: any) {
       {/* Title */}
       <View style={styles.textContainer}>
         <Text style={styles.title}>Teamly</Text>
-        <Text style={styles.subtitle}>From chaos to kickoff!</Text>
+        <Text style={styles.subtitle}>From chaos to kickoff</Text>
       </View>
+
+      <View style={{ flex: 1 }} />
 
       {/* Bottom */}
       <View style={styles.bottomContainer}>

@@ -174,7 +174,7 @@ export default function TeamScreen({ navigation }: any) {
     teamItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: 18,
+      borderRadius: 100,
       paddingHorizontal: 18,
       paddingVertical: 18,
       backgroundColor: colors.backgroundSecondary,
@@ -224,7 +224,7 @@ export default function TeamScreen({ navigation }: any) {
             style={styles.addButton}
             onPress={() => setShowCreate(true)}
           >
-            <Ionicons name="add" size={24} color={colors.textPrimary} />
+            <Ionicons name="add" size={24} color={colors.systemGreen} />
           </TouchableOpacity>
         </View>
 
