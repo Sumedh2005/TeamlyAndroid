@@ -167,14 +167,15 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const showReminderForMatch = (match: DBMatch) => {
-    const now = new Date();
+    const localNow = new Date();
+    const pseudoNow = new Date(Date.UTC(localNow.getFullYear(), localNow.getMonth(), localNow.getDate(), localNow.getHours(), localNow.getMinutes(), localNow.getSeconds()));
 
     // Parse match date and time exactly like swift logic
     const matchDateStr = match.matchDate.toISOString().split('T')[0];
     const matchTimeStr = match.matchTime.toISOString().split('T')[1];
     const matchDateTime = new Date(`${matchDateStr}T${matchTimeStr}`);
 
-    const timeDiffMs = matchDateTime.getTime() - now.getTime();
+    const timeDiffMs = matchDateTime.getTime() - pseudoNow.getTime();
     const hoursUntilMatch = Math.floor(timeDiffMs / (1000 * 60 * 60));
     const minutesUntilMatch = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60));
 
@@ -293,7 +294,7 @@ export default function HomeScreen({ navigation }: any) {
       paddingHorizontal: 20,
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
+      alignItems: 'flex-start',
     },
     reminderBannerDark: {
       borderColor: 'rgba(255, 59, 48, 1)',
