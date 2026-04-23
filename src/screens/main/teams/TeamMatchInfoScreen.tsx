@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import { supabase } from '../../../lib/supabase';
+import ReportModal from '../report/ReportModal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -90,6 +91,7 @@ export default function TeamMatchInfoScreen({ navigation, route }: any) {
   const [rsvpUserIds, setRsvpUserIds] = useState<string[]>([]);
   const [goingCount, setGoingCount] = useState<number>(0);
   const [actionLoading, setActionLoading] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   // -------- derived from rawMatch --------
   const venue: string = rawMatch?.venue ?? 'Unknown Venue';
@@ -308,7 +310,7 @@ export default function TeamMatchInfoScreen({ navigation, route }: any) {
         (idx) => {
           if (idx === 1) {
             if (isCaptain) handleDelete();
-            else Alert.alert('Report', 'Report functionality coming soon.');
+            else setReportModalVisible(true);
           }
         }
       );
@@ -322,7 +324,7 @@ export default function TeamMatchInfoScreen({ navigation, route }: any) {
               { text: 'Cancel', style: 'cancel' },
             ]
           : [
-              { text: 'Report', style: 'destructive', onPress: () => Alert.alert('Report', 'Coming soon.') },
+              { text: 'Report', style: 'destructive', onPress: () => setReportModalVisible(true) },
               { text: 'Cancel', style: 'cancel' },
             ]
       );
@@ -590,6 +592,14 @@ export default function TeamMatchInfoScreen({ navigation, route }: any) {
             )}
           </TouchableOpacity>
         ) : null}
+
+        {/* Report Modal */}
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          reportType={{ type: 'match', id: rawMatch?.id }}
+          currentUserId={currentUserId ?? ''}
+        />
       </SafeAreaView>
     </View>
   );

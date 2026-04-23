@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '../../../theme/colors';
 import { FontFamily, FontSize } from '../../../theme/fonts';
 import { supabase } from '../../../lib/supabase';
@@ -45,7 +46,7 @@ function formatTime(d: Date) {
 }
 
 function formatDate(d: Date) {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 function toDateStr(d: Date) {
@@ -65,6 +66,7 @@ function toTimeStr(d: Date) {
 export default function ChallengeTeamScreen({ visible, onClose, team, teamId }: Props) {
   const colors = useColors();
   const isDark = colors.isDark;
+  const insets = useSafeAreaInsets();
 
   // -------- form state --------
   const [venue, setVenue] = useState('');
@@ -256,7 +258,7 @@ export default function ChallengeTeamScreen({ visible, onClose, team, teamId }: 
       </TouchableWithoutFeedback>
 
       {/* Sheet */}
-      <View style={[styles.sheet, { backgroundColor: bg }]}>
+      <View style={[styles.sheet, { backgroundColor: bg, paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View>
             {/* Drag bar */}
@@ -272,64 +274,59 @@ export default function ChallengeTeamScreen({ visible, onClose, team, teamId }: 
             >
 
               {/* ── Venue ── */}
-              <View style={[styles.inputRow, { backgroundColor: cardBg }]}>
-                <Text style={styles.pinEmoji}>📍</Text>
-                <TextInput
-                  style={[styles.textInput, { color: textColor }]}
-                  placeholder="Venue"
-                  placeholderTextColor={placeholderColor}
-                  value={venue}
-                  onChangeText={setVenue}
-                />
-              </View>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.backgroundTertiary, color: colors.textPrimary }]}
+                placeholder="📍  Venue"
+                placeholderTextColor={colors.textTertiary}
+                value={venue}
+                onChangeText={setVenue}
+              />
 
               {/* ── Time ── */}
-              <View style={styles.fieldRow}>
-                <View style={styles.fieldLabel}>
-                  <Ionicons name="time-outline" size={22} color={green} />
-                  <Text style={[styles.labelText, { color: textColor }]}>Time</Text>
+              <View style={styles.row}>
+                <View style={styles.rowLabel}>
+                  <Ionicons name="time-outline" size={20} color={colors.systemGreen} />
+                  <Text style={[styles.rowLabelText, { color: colors.textPrimary }]}>Time</Text>
                 </View>
-                <View style={styles.timePills}>
-                  <TouchableOpacity
-                    style={[styles.pill, { backgroundColor: cardBg }]}
-                    onPress={() => setShowFromPicker(true)}
-                  >
-                    <Text style={[styles.pillText, { color: fromTime ? textColor : placeholderColor }]}>
-                      {fromTime ? formatTime(fromTime) : 'From'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.pill, { backgroundColor: cardBg }]}
-                    onPress={() => setShowToPicker(true)}
-                  >
-                    <Text style={[styles.pillText, { color: toTime ? textColor : placeholderColor }]}>
-                      {toTime ? formatTime(toTime) : 'To'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                  style={[styles.rowButton, { backgroundColor: colors.backgroundTertiary }]}
+                  onPress={() => setShowFromPicker(true)}
+                >
+                  <Text style={[styles.rowButtonText, { color: colors.textPrimary }]}>
+                    {fromTime ? formatTime(fromTime) : 'From'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.rowButton, { backgroundColor: colors.backgroundTertiary }]}
+                  onPress={() => setShowToPicker(true)}
+                >
+                  <Text style={[styles.rowButtonText, { color: colors.textPrimary }]}>
+                    {toTime ? formatTime(toTime) : 'To'}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {/* ── Date ── */}
-              <View style={styles.fieldRow}>
-                <View style={styles.fieldLabel}>
-                  <Ionicons name="calendar-outline" size={22} color={green} />
-                  <Text style={[styles.labelText, { color: textColor }]}>Date</Text>
+              <View style={styles.row}>
+                <View style={styles.rowLabel}>
+                  <Ionicons name="calendar-outline" size={20} color={colors.systemGreen} />
+                  <Text style={[styles.rowLabelText, { color: colors.textPrimary }]}>Date</Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.datePill, { backgroundColor: cardBg }]}
+                  style={[styles.rowButton, { flex: 2, backgroundColor: colors.backgroundTertiary }]}
                   onPress={() => setShowDatePicker(true)}
                 >
-                  <Text style={[styles.pillText, { color: date ? textColor : placeholderColor }]}>
-                    {date ? formatDate(date) : 'Select date'}
+                  <Text style={[styles.rowButtonText, { color: colors.textPrimary }]}>
+                    {date ? formatDate(date) : 'Select Date'}
                   </Text>
                 </TouchableOpacity>
               </View>
 
               {/* ── Challenge toggle ── */}
-              <View style={styles.fieldRow}>
-                <View style={styles.fieldLabel}>
+              <View style={[styles.row, { justifyContent: 'space-between' }]}>
+                <View style={styles.rowLabel}>
                   <Ionicons name="people-circle-outline" size={24} color={green} />
-                  <Text style={[styles.labelText, { color: textColor }]}>Challenge</Text>
+                  <Text style={[styles.rowLabelText, { color: colors.textPrimary, marginLeft: -2 }]}>Challenge</Text>
                 </View>
                 <Switch
                   value={isChallengeMode}
@@ -488,7 +485,6 @@ const styles = StyleSheet.create({
     right: 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 32,
     maxHeight: '88%',
   },
 
@@ -515,65 +511,43 @@ const styles = StyleSheet.create({
   },
 
   // Venue row
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    height: 50,
+  input: {
+    height: 52,
+    borderRadius: 50,
+    paddingHorizontal: 20,
+    fontSize: FontSize.md,
+    fontFamily: FontFamily.regular,
+    marginBottom: 12,
+    marginTop: 8,
   },
-  pinEmoji: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-  },
-
+  
   // Generic label row
-  fieldRow: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 52,
+    marginBottom: 12,
+    gap: 12,
   },
-  fieldLabel: {
+  rowLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    width: 90,
   },
-  labelText: {
-    fontSize: 18,
-    fontWeight: '600',
+  rowLabelText: {
+    fontSize: FontSize.md,
+    fontFamily: FontFamily.medium,
   },
-
-  // Time pills
-  timePills: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  pill: {
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    minWidth: 80,
-    alignItems: 'center',
-  },
-  pillText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-
-  // Date pill (full width on right side)
-  datePill: {
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+  rowButton: {
     flex: 1,
-    marginLeft: 16,
+    height: 46,
+    borderRadius: 50,
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+  rowButtonText: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.regular,
   },
 
   // Team list box
