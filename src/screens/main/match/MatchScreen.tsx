@@ -353,6 +353,7 @@ export default function MatchScreen({ navigation }: any) {
                 slotsLeft={item.playersNeeded - item.playersRSVPed}
                 totalSlots={item.playersNeeded}
                 goingCount={item.playersRSVPed}
+                isPast={activeTab === 'past'}
                 onPress={() => navigateToMatchInfo(item)}
               />
             )}
