@@ -17,6 +17,7 @@ interface MatchCellCardProps {
   slotsLeft: number;
   totalSlots: number;
   goingCount: number;
+  isPast?: boolean;
   onPress?: () => void;
 }
 
@@ -58,6 +59,7 @@ export default function MatchCellCard({
   slotsLeft,
   totalSlots,
   goingCount,
+  isPast,
   onPress,
 }: MatchCellCardProps) {
   const colors = useColors();
@@ -136,9 +138,15 @@ export default function MatchCellCard({
             <Ionicons name="calendar-outline" size={18} color={colors.textPrimary} />
             <Text style={styles.infoText}>{displayDate}</Text>
           </View>
-          <View style={[styles.slotBadge, { backgroundColor: slotColor }]}>
-            <Text style={styles.slotText}>{slotsLeft} slots left</Text>
-          </View>
+          {isPast ? (
+            <View style={[styles.slotBadge, { backgroundColor: colors.backgroundTertiary }]}>
+              <Text style={[styles.slotText, { color: colors.systemGreen }]}>Match done</Text>
+            </View>
+          ) : (
+            <View style={[styles.slotBadge, { backgroundColor: slotColor }]}>
+              <Text style={styles.slotText}>{slotsLeft} slots left</Text>
+            </View>
+          )}
         </View>
 
         {/* Time Row */}
